@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-public struct CVelocity : IComponentData
+public struct CBoid : IComponentData
 {
-    public float3 velocity;
+    public float speed;
 }
