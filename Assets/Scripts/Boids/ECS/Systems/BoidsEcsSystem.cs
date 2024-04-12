@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Boids
 {
@@ -13,7 +14,8 @@ namespace Boids
 
         CBoidsConfig config;
 
-        NativeArray<float3> boidsPositions;
+        NativeArray<float3> positions;
+        NativeArray<quaternion> directions;
         NativeArray<Entity> boids;
 
         EntityQuery boidsQuery;
@@ -25,15 +27,17 @@ namespace Boids
             config = SystemAPI.GetSingleton<CBoidsConfig>();
 
             Initialize();
-
-            SpawnBoids(boidsPositions);
+            SpawnBoids();
         }
 
         private void Initialize()
         {
             hashGridBuilder = new SpatialHashGridBuilder();
+
             spawner = new SpawnerEcs();
-            boidsPositions = new NativeArray<float3>(spawner.GenerateBoidPositions(config.spawnData), Allocator.TempJob);
+            spawner.Generate(config.spawnData);
+            positions = spawner.GetPositions(Allocator.TempJob);
+            directions = spawner.GetDirections(Allocator.TempJob);
 
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
         }
@@ -44,22 +48,19 @@ namespace Boids
         }
 
         [BurstCompile]
-        private void SpawnBoids(NativeArray<float3> boidsPositions)
+        private void SpawnBoids()
         {
-            for(int i = 0; i < boidsPositions.Length; i++)
+            for(int i = 0; i < positions.Length; i++)
             {
                 EntityManager.Instantiate(config.boidPrefabEntity, boids);
             }
 
-            boidsQuery.ToComponentDataArray<>
+            boidsQuery.CopyFromComponentDataArray<CPosition>(positions.Reinterpret<CPosition>());
 
-            for (int i = 0;i < boidsPositions.Length; i++)
-            {
-                //SystemAPI.SetComponent(boids, new LocalTransform
-                //{
+            NativeArray<LocalToWorld> localToWorld = boidsQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
+            EntityManager.SetComponentData(boidsQuery, );
 
-                //});
-            }
+            boidsQuery.CopyFromComponentDataArray<LocalToWorld>(localToWorld);
         }
 
         private partial struct SpawnBoidsJob : IJobEntity
@@ -67,6 +68,33 @@ namespace Boids
             public void Execute()
             {
 
+            }
+        }
+    }
+
+    //Useentitiesforeach https://forum.unity.com/threads/entity-query-vs-entities-for-each.851968/
+    public struct SetBoidsData : IJobEntityBatch
+    {
+        public ComponentTypeHandle<CPosition> velocityTypeHandle;
+        public ComponentTypeHandle<CDirection> translationTypeHandle;
+        public ComponentTypeHandle<LocalToWorld> localToWorldTypeHandle;
+        public float DeltaTime;
+
+        [BurstCompile]
+        public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+        {
+            NativeArray<VelocityVector> velocityVectors =
+                batchInChunk.GetNativeArray(velocityTypeHandle);
+            NativeArray<Translation> translations =
+                batchInChunk.GetNativeArray(translationTypeHandle);
+
+            for (int i = 0; i < batchInChunk.Count; i++)
+            {
+                float3 translation = translations[i].Value;
+                float3 velocity = velocityVectors[i].Value;
+                float3 newTranslation = translation + velocity * DeltaTime;
+
+                translations[i] = new Translation() { Value = newTranslation };
             }
         }
     }

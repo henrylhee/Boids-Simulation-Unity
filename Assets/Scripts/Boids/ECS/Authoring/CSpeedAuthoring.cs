@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using Unity.Entities;
 using UnityEngine;
 
@@ -9,7 +7,7 @@ public class CSpeedAuthoring : MonoBehaviour
     {
         public override void Bake(CSpeedAuthoring authoring)
         {
-            Entity entity = GetEntity(TransformUsageFlags.Dynamic);
+            Entity entity = GetEntity(TransformUsageFlags.Renderable);
             AddComponent(entity, new CSpeed());
         }
     }
