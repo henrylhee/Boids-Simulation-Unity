@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Boids
 {
+    [BurstCompile]
     public partial class BoidsEcsSystem : SystemBase
     {
         SpatialHashGridBuilder hashGridBuilder;
@@ -14,16 +15,22 @@ namespace Boids
 
         CBoidsConfig config;
 
+
+        NativeArray<LocalToWorld> localToWorld;
         NativeArray<float3> positions;
         NativeArray<quaternion> directions;
         NativeArray<Entity> boids;
 
         EntityQuery boidsQuery;
 
-
+      
         protected override void OnCreate()
         {
             RequireForUpdate<CBoidsConfig>();
+        }
+
+        protected override void OnStartRunning()
+        {
             config = SystemAPI.GetSingleton<CBoidsConfig>();
 
             Initialize();
@@ -34,68 +41,49 @@ namespace Boids
         {
             hashGridBuilder = new SpatialHashGridBuilder();
 
+            boids = new NativeArray<Entity>(new Entity[config.spawnData.boidCount], Allocator.Persistent);
+
             spawner = new SpawnerEcs();
             spawner.Generate(config.spawnData);
             positions = spawner.GetPositions(Allocator.TempJob);
             directions = spawner.GetDirections(Allocator.TempJob);
-
-            boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
         }
 
         protected override void OnUpdate()
         {
-
         }
 
         [BurstCompile]
         private void SpawnBoids()
         {
-            for(int i = 0; i < positions.Length; i++)
-            {
-                EntityManager.Instantiate(config.boidPrefabEntity, boids);
-            }
+            boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
+
+            EntityManager.Instantiate(config.boidPrefabEntity, boids);
 
             boidsQuery.CopyFromComponentDataArray<CPosition>(positions.Reinterpret<CPosition>());
+            boidsQuery.CopyFromComponentDataArray<CRotation>(directions.Reinterpret<CRotation>());
 
-            NativeArray<LocalToWorld> localToWorld = boidsQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
-            EntityManager.SetComponentData(boidsQuery, );
-
-            boidsQuery.CopyFromComponentDataArray<LocalToWorld>(localToWorld);
-        }
-
-        private partial struct SpawnBoidsJob : IJobEntity
-        {
-            public void Execute()
+            new SetBoidsData()
             {
-
-            }
+                startSpeed = config.movementData.Speed,
+                scale = new float3(1f,1f,1f),
+            }.ScheduleParallel(boidsQuery);
         }
     }
 
-    //Useentitiesforeach https://forum.unity.com/threads/entity-query-vs-entities-for-each.851968/
-    public struct SetBoidsData : IJobEntityBatch
+    [BurstCompile]
+    public partial struct SetBoidsData : IJobEntity
     {
-        public ComponentTypeHandle<CPosition> velocityTypeHandle;
-        public ComponentTypeHandle<CDirection> translationTypeHandle;
-        public ComponentTypeHandle<LocalToWorld> localToWorldTypeHandle;
-        public float DeltaTime;
+        public float startSpeed;
+        public float3 scale;
+
 
         [BurstCompile]
-        public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+        public void Execute(ref CPosition position, ref CRotation rotation, ref CSpeed speed, ref LocalTransform transform)
         {
-            NativeArray<VelocityVector> velocityVectors =
-                batchInChunk.GetNativeArray(velocityTypeHandle);
-            NativeArray<Translation> translations =
-                batchInChunk.GetNativeArray(translationTypeHandle);
 
-            for (int i = 0; i < batchInChunk.Count; i++)
-            {
-                float3 translation = translations[i].Value;
-                float3 velocity = velocityVectors[i].Value;
-                float3 newTranslation = translation + velocity * DeltaTime;
-
-                translations[i] = new Translation() { Value = newTranslation };
-            }
+            speed.value = startSpeed;
+            localToWorld.Value = float4x4.TRS(position.value, direction.value, scale);
         }
     }
 }
