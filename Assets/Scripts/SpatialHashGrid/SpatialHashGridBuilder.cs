@@ -1,6 +1,7 @@
 using Unity.Mathematics;
 using static DataConversion;
 using Unity.Collections;
+using System.Diagnostics;
 
 public class SpatialHashGridBuilder
 {
@@ -23,12 +24,12 @@ public class SpatialHashGridBuilder
     int[] hashTable;
 
 
-    public void Inititalize(float cellSize, float3 boundsMin, float3 boundsMax, int voxelSearchFactor)
+    public void Inititalize(float cellSize, float3 boundsMin, float3 boundsMax)
     {
         this.cellSize = cellSize;
         conversionFactor = 1f / cellSize;
 
-        this.voxelSearchFactor = voxelSearchFactor;
+        //this.voxelSearchFactor = voxelSearchFactor;
 
         UpdateBounds(boundsMin, boundsMax);
     }
@@ -63,43 +64,51 @@ public class SpatialHashGridBuilder
         return new NativeArray<int>(hashTable, Allocator.TempJob);
     }
 
+    public int3 GetCellCountAxis() => cellCountAxis;
+
     private void BuildContainers()
     {
         pivots = new int3[cellCountXYZ];
         cellIndices = new int[positions.Length];
         hashTable = new int[positions.Length];
 
-        for(int i = 0; i < positions.Length; i++)
+        for(int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
         {
-            int cellIndex = HashFunction(i);
-            cellIndices[i] = cellIndex;
+            int cellIndex = HashFunction(boidIndex);
+            cellIndices[boidIndex] = cellIndex;
+            if(cellIndex >= cellCountXYZ)
+            {
+                UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ + 
+                                      " in boidIndex: " + boidIndex + " with position: " + positions[boidIndex]);
+                return;
+            }
             pivots[cellIndex].x++;
         }
 
         int accum = 0;
-        for (int i = 0; i < cellCountXYZ; i++)
+        for (int cellIndex = 0; cellIndex < cellCountXYZ; cellIndex++)
         {
-            int boidsCountCell = pivots[i].x;
+            int boidsCountCell = pivots[cellIndex].x;
             if (boidsCountCell != 0)
             {
-                pivots[i].y = accum;
+                pivots[cellIndex].y = accum;
                 accum += boidsCountCell;
-                pivots[i].z = accum;
+                pivots[cellIndex].z = accum;
             }
         }
 
         int[] hashBucketCount = new int[pivots.Length];
-        for (int i = 0; i < positions.Length; i++)
+        for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
         {
-            int cellIndex = cellIndices[i];
-            hashTable[pivots[cellIndex].y + hashBucketCount[cellIndex]] = i;
+            int cellIndex = cellIndices[boidIndex];
+            hashTable[pivots[cellIndex].y + hashBucketCount[cellIndex]] = boidIndex;
             hashBucketCount[cellIndex]++;
         }
     }
 
     private int HashFunction(int i)
     {
-        int3 cell = FloorFloatToInt((positions[i] - boundsMin) * conversionFactor);
+        int3 cell = FloorToInt((positions[i] - boundsMin) * conversionFactor);
         return GetCellIndex(cell);
     }
 
@@ -111,7 +120,8 @@ public class SpatialHashGridBuilder
     private void SetCellCount()
     {
         float3 v = (boundsMax - boundsMin) * conversionFactor;
-        cellCountAxis = FloorFloatToInt(v);
+
+        cellCountAxis = CeilToInt(v);
         cellCountXY = cellCountAxis.x * cellCountAxis.y;
         cellCountXYZ = cellCountAxis.x * cellCountAxis.y * cellCountAxis.z;
     }

@@ -11,6 +11,9 @@ namespace Boids
         private float3[] positions;
         private quaternion[] directions;
 
+        public float3 boundsMin { get; private set; }
+        public float3 boundsMax { get; private set; }
+
 
         public void Generate(CSpawnData settings)
         {
@@ -20,10 +23,10 @@ namespace Boids
             switch (settings.shape)
             {
                 case GenerationShape.SPHERE:
-                    GenerateSpherePositions(settings);
+                    //GenerateSpherePositions(settings);
                     break;
                 case GenerationShape.CUBE:
-                    GenerateCubePositions(settings);
+                    GenerateCubeSpawn(settings);
                     break;
             }
         }
@@ -63,10 +66,12 @@ namespace Boids
             int edgeCount = 2;
             float offset = settings.spawnDistance;
             int index = 0;
+            int halfSize = 0;
+
 
             while (index < settings.boidCount)
             {
-                int halfSize = edgeCount / 2;
+                halfSize = edgeCount / 2;
                 float3 start = center - new float3(offset, offset, offset) * halfSize;
 
                 for (int x = 0; x <= edgeCount; x++)
@@ -83,6 +88,10 @@ namespace Boids
                             }
                             else
                             {
+                                boundsMin = center - new float3(offset, offset, offset) * halfSize;
+                                boundsMax = center + new float3(offset, offset, offset) * halfSize;
+                                UnityEngine.Debug.Log("boundsMin: " + boundsMin);
+                                UnityEngine.Debug.Log("boundsMax: " + boundsMax);
                                 return;
                             }
                         }

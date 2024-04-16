@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SpawnConfig
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
-    <boidCount>k__BackingField: 100
+    <boidCount>k__BackingField: 100000
     <center>k__BackingField:
       x: 0
       y: 0

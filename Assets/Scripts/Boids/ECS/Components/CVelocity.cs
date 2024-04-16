@@ -6,5 +6,5 @@ using UnityEngine;
 
 public struct CVelocity : IComponentData
 {
-    public float3 velocity;
+    public float3 value;
 }
