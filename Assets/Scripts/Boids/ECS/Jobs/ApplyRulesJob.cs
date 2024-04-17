@@ -106,13 +106,6 @@ namespace Boids
             repulsionVector = repulsionVector / repulsionCounter;
 
             aimedVelocity.value = cohesionVector + allignmentVector + repulsionVector;
-
-        }
-
-        [BurstCompile(DisableSafetyChecks = true)]
-        private void ProcessBoid(in int boidIndex, in int3 pivot, in float3 position)
-        {
-
         }
     }
 }

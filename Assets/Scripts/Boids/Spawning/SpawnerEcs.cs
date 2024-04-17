@@ -31,14 +31,14 @@ namespace Boids
             }
         }
 
-        public NativeArray<float3> GetPositions(Allocator allocator)
+        public void GetPositions(ref NativeArray<CPosition> positions, Allocator allocator)
         {
-            return new NativeArray<float3>(positions, allocator);
+            new NativeArray<float3>(this.positions, allocator).Reinterpret<CPosition>();
         }
 
-        public NativeArray<float3> GetVelocities(Allocator allocator)
+        public void GetVelocities(ref NativeArray<CVelocity> velocities, Allocator allocator)
         {
-            return new NativeArray<float3>(velocities, allocator);
+            new NativeArray<float3>(this.velocities, allocator).Reinterpret<CVelocity>();
         }
 
         private void GenerateSpherePositions(CSpawnData settings)

@@ -5,15 +5,16 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Boids
 {
-    [BurstCompile]
-    public partial class BoidsEcsSystem : SystemBase
+    public partial struct BoidsEcsSystem : ISystem
     {
         SpatialHashGridBuilder hashGridBuilder;
-        float3 boundsMin;
-        float3 boundsMax;
+        NativeArray<int3> pivots;
+        NativeArray<int> cellIndices;
+        NativeArray<int> hashTable;
 
         SpawnerEcs spawner;
 
@@ -24,14 +25,18 @@ namespace Boids
         NativeArray<Entity> boids;
 
         EntityQuery boidsQuery;
+        JobHandle initializeBoidsHandle;
+        JobHandle applyRulesHandle;
+        JobHandle moveBoidsHandle;
 
-
-        protected override void OnCreate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            RequireForUpdate<CBoidsConfig>();
+            state.RequireForUpdate<CBoidsConfig>();
         }
 
-        protected override void OnStartRunning()
+        [BurstCompile]
+        public void OnStartRunning(ref SystemState state)
         {
             config = SystemAPI.GetSingleton<CBoidsConfig>();
 
@@ -39,56 +44,61 @@ namespace Boids
             SpawnBoids();
         }
 
-        private void Initialize()
+        public void OnUpdate(ref SystemState state)
         {
-            boids = new NativeArray<Entity>(new Entity[config.spawnData.boidCount], Allocator.Persistent);
-
-            spawner = new SpawnerEcs();
-            spawner.Generate(config.spawnData);
-            positions = spawner.GetPositions(Allocator.Persistent).Reinterpret<CPosition>();
-            velocities = spawner.GetVelocities(Allocator.Persistent).Reinterpret<CVelocity>();
-            boundsMin = spawner.boundsMin;
-            boundsMax = spawner.boundsMax;
-
-            boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
-
-            hashGridBuilder = new SpatialHashGridBuilder();
-            hashGridBuilder.Inititalize(config.behaviourData.CohesionDistance, boundsMin, boundsMax);
-            hashGridBuilder.Build(spawner.GetPositions(Allocator.Persistent));
-        }
-
-        protected override void OnUpdate()
-        {
-            hashGridBuilder.Build(spawner.GetPositions(Allocator.Persistent));
-
-            JobHandle applyRulesJob = new ApplyRulesJob
+            applyRulesHandle = new ApplyRulesJob
             {
                 behaviourData = config.behaviourData,
 
                 positions = this.positions,
                 velocities = this.velocities,
 
-                boundsMin = this.boundsMin,
+                boundsMin = hashGridBuilder.GetBoundsMin(),
                 conversionFactor = hashGridBuilder.GetConversionFactor(),
                 cellCountAxis = hashGridBuilder.GetCellCountAxis(),
                 cellCountXY = hashGridBuilder.GetCellCountXY(),
 
-                forwardVector = new float3(0f,0f,1f),
+                forwardVector = new float3(0f, 0f, 1f),
 
-                pivots = hashGridBuilder.GetPivots(),
-                hashTable = hashGridBuilder.GetHashTable(),
-                cellIndices = hashGridBuilder.GetCellIndices()
-            }.ScheduleParallel(boidsQuery, new JobHandle());
+                pivots = this.pivots,
+                hashTable = this.hashTable,
+                cellIndices = this.cellIndices
+            }.ScheduleParallel(boidsQuery, initializeBoidsHandle);
 
-            new MoveBoidsJob
+            moveBoidsHandle = new MoveBoidsJob
             {
                 deltaTime = SystemAPI.Time.DeltaTime
-            }.ScheduleParallel(boidsQuery, applyRulesJob);
+            }.ScheduleParallel(boidsQuery, applyRulesHandle);
 
+            moveBoidsHandle.Complete();
 
+            positions = boidsQuery.ToComponentDataArray<CPosition>(Allocator.Persistent);
+            velocities = boidsQuery.ToComponentDataArray<CVelocity>(Allocator.Persistent);
+
+            hashGridBuilder.Build(positions);
+            hashGridBuilder.GetPivots(ref pivots);
+            hashGridBuilder.GetHashTable(ref hashTable);
+            hashGridBuilder.GetCellIndices(ref cellIndices);
         }
 
         [BurstCompile]
+        private void Initialize()
+        {
+            boids = new NativeArray<Entity>(new Entity[config.spawnData.boidCount], Allocator.Persistent);
+
+            spawner = new SpawnerEcs();
+            spawner.Generate(config.spawnData);
+
+            spawner.GetPositions(ref positions, Allocator.Persistent);
+            spawner.GetVelocities(ref velocities, Allocator.Persistent);
+
+            boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
+
+            hashGridBuilder = new SpatialHashGridBuilder();
+            hashGridBuilder.Inititalize(config.behaviourData.CohesionDistance, config.spawnData.boidCount);
+            hashGridBuilder.Build(in positions);
+        }
+
         private void SpawnBoids()
         {
             EntityManager.Instantiate(config.boidPrefabEntity, boids);
@@ -96,10 +106,10 @@ namespace Boids
             boidsQuery.CopyFromComponentDataArray<CPosition>(positions.Reinterpret<CPosition>());
             boidsQuery.CopyFromComponentDataArray<CVelocity>(velocities.Reinterpret<CVelocity>());
 
-            new InitializeBoids()
+            initializeBoidsHandle = new InitializeBoids()
             {
                 startSpeed = config.movementData.startSpeed,
-            }.ScheduleParallel(boidsQuery);
+            }.ScheduleParallel(boidsQuery, new JobHandle());
         }
     }
 
@@ -112,10 +122,12 @@ namespace Boids
 
 
         [BurstCompile]
-        public void Execute(BoidAspect boidAspect)
+        public void Execute(ref LocalTransform transform, in CPosition position, in CVelocity velocity)
         {
-            boidAspect.Speed = startSpeed;
-            boidAspect.Initialize();
+            transform.Position = position.value;
+            transform.Rotation = TransformHelpers.LookAtRotation(new float3(0f, 0f, 1f), 
+                                                                 velocity.value,
+                                                                 new float3(0f, 1f, 0f));
         }
     }
 }

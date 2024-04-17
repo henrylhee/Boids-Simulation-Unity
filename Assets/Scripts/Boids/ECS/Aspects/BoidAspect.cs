@@ -38,26 +38,6 @@ namespace Boids
             get => angularSpeed.ValueRO.value;
             set => angularSpeed.ValueRW.value = value;
         }
-
-        [BurstCompile]
-        public void Initialize()
-        {
-            transform.ValueRW.Position = position.ValueRO.value;
-            transform.ValueRW.Rotation = TransformHelpers.LookAtRotation(new float3(0f, 0f, 1f), velocity.ValueRO.value, new float3(0f, 1f, 0f));
-        }
-
-        [BurstCompile]
-        public void ApplyAimedVelocity()
-        {
-            Velocity = aimedVelocity.ValueRO.value;
-        }
-
-        [BurstCompile]
-        public void Move(in float deltaTime)
-        {
-            position.ValueRW.value = position.ValueRO.value + velocity.ValueRO.value * deltaTime;
-            transform.ValueRW.Position = position.ValueRO.value;
-        }
     }
 }
 

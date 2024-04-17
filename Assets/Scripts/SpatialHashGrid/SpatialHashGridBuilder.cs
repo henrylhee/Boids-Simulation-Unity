@@ -2,8 +2,11 @@ using Unity.Mathematics;
 using static DataConversion;
 using Unity.Collections;
 using System.Diagnostics;
+using Unity.VisualScripting;
+using Unity.Burst;
 
-public class SpatialHashGridBuilder
+[BurstCompile]
+public struct SpatialHashGridBuilder
 {
     private float cellSize;
     private float3 boundsMin;
@@ -24,64 +27,55 @@ public class SpatialHashGridBuilder
     int[] hashTable;
 
 
-    public void Inititalize(float cellSize, float3 boundsMin, float3 boundsMax)
+    public void Inititalize(float cellSize, int boidCount)
     {
         this.cellSize = cellSize;
         conversionFactor = 1f / cellSize;
 
-        //this.voxelSearchFactor = voxelSearchFactor;
-
-        UpdateBounds(boundsMin, boundsMax);
-    }
-
-    public void UpdateBounds(float3 boundsMin, float3 boundsMax)
-    {
-        this.boundsMin = boundsMin;
-        this.boundsMax = boundsMax;
-
         SetCellCount();
+
+        cellIndices = new int[boidCount];
+        hashTable = new int[boidCount];
+
+        //this.voxelSearchFactor = voxelSearchFactor;
     }
 
-    public void Build(NativeArray<float3> positions)
+    public void Build(in NativeArray<CPosition> positions)
     {
-        this.positions = positions.ToArray();
+        this.positions = positions.Reinterpret<float3>().ToArray();
 
+        UpdateBounds();
+        SetCellCount();
         BuildContainers();
     }
 
-    public NativeArray<int3> GetPivots()
-    {
-        return new NativeArray<int3>(pivots, Allocator.TempJob);
-    }
-
-    public NativeArray<int> GetCellIndices()
-    {
-        return new NativeArray<int>(cellIndices, Allocator.TempJob);
-    }
-
-    public NativeArray<int> GetHashTable()
-    {
-        return new NativeArray<int>(hashTable, Allocator.TempJob);
-    }
-
+    public void GetPivots(ref NativeArray<int3> pivots) => pivots.CopyFrom(this.pivots);
+    public void GetCellIndices(ref NativeArray<int> cellIndices) => cellIndices.CopyFrom(this.cellIndices);
+    public void GetHashTable(ref NativeArray<int> hashTable) => hashTable.CopyFrom(this.hashTable);
     public int3 GetCellCountAxis() => cellCountAxis;
     public int GetCellCountXY() => cellCountXY;
     public float GetConversionFactor() => conversionFactor;
+    public float3 GetBoundsMin() => boundsMin;
+    public float3 GetBoundsMax() => boundsMax;
 
     private void BuildContainers()
     {
-        pivots = new int3[cellCountXYZ];
-        cellIndices = new int[positions.Length];
-        hashTable = new int[positions.Length];
+        pivots = new int3[positions.Length];
 
-        for(int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
+        for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
         {
             int cellIndex = HashFunction(boidIndex);
             cellIndices[boidIndex] = cellIndex;
             if(cellIndex >= cellCountXYZ)
             {
-                UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ + 
-                                      " in boidIndex: " + boidIndex + " with position: " + positions[boidIndex]);
+                float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
+                //UnityEngine.Debug.Log("#####");
+                //UnityEngine.Debug.Log("convertedGridLength: " + convertedGridLength);
+                //UnityEngine.Debug.Log("cellCountAxis: " + cellCountAxis);
+                //UnityEngine.Debug.Log("boundsMin: " + boundsMin);
+                //UnityEngine.Debug.Log("boundsMax: " + boundsMax);
+                //UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ + 
+                //                      " in boidIndex: " + boidIndex + " with position: " + positions[boidIndex]);
                 return;
             }
             pivots[cellIndex].x++;
@@ -108,19 +102,43 @@ public class SpatialHashGridBuilder
         }
     }
 
+    [BurstCompile]
     private int HashFunction(int i)
     {
         float3 convertedPosition = (positions[i] - boundsMin) * conversionFactor;
-        return GetCellIndex(new int3((int)convertedPosition.x, 
-                                     (int)convertedPosition.y, 
-                                     (int)convertedPosition.z));
+        int3 cell = new int3((int)math.ceil(convertedPosition.x), 
+                             (int)math.ceil(convertedPosition.y),
+                             (int)math.ceil(convertedPosition.z)) - 1;
+        return math.clamp(cell.x, 0, cell.x) + 
+               math.clamp(cell.y * cellCountAxis.x, 0, cell.y * cellCountAxis.x) + 
+               math.clamp(cell.z * cellCountXY, 0, cell.z * cellCountXY);
     }
 
-    private int GetCellIndex(int3 cell)
+    [BurstCompile]
+    private void UpdateBounds()
     {
-        return cell.x + cell.y*cellCountAxis.x + cell.z*cellCountXY;
+        float3 newBoundsMin = float3.zero;
+        float3 newBoundsMax = float3.zero;
+
+        for (int i = 0;  i < positions.Length; i++)
+        {
+            float3 position = positions[i];
+
+            if(position.x > newBoundsMax.x) { newBoundsMax.x = position.x; }
+            if(position.x < newBoundsMin.x) { newBoundsMin.x = position.x; }
+
+            if (position.y > newBoundsMax.y) { newBoundsMax.y = position.y; }
+            if (position.y < newBoundsMin.y) { newBoundsMin.y = position.y; }
+
+            if (position.z > newBoundsMax.z) { newBoundsMax.z = position.z; }
+            if (position.z < newBoundsMin.z) { newBoundsMin.z = position.z; }
+        }
+
+        boundsMin = newBoundsMin;
+        boundsMax = newBoundsMax;
     }
 
+    [BurstCompile]
     private void SetCellCount()
     {
         float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
@@ -128,7 +146,8 @@ public class SpatialHashGridBuilder
         cellCountAxis = new int3((int)math.ceil(convertedGridLength).x, 
                                  (int)math.ceil(convertedGridLength).y, 
                                  (int)math.ceil(convertedGridLength).z);
+
         cellCountXY = cellCountAxis.x * cellCountAxis.y;
-        cellCountXYZ = cellCountAxis.x * cellCountAxis.y * cellCountAxis.z;
+        cellCountXYZ = cellCountXY * cellCountAxis.z;
     }
 }
