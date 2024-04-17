@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -18,8 +19,8 @@ namespace Boids
 
         CBoidsConfig config;
 
-        NativeArray<float3> positions;
-        NativeArray<quaternion> directions;
+        NativeArray<CPosition> positions;
+        NativeArray<CVelocity> velocities;
         NativeArray<Entity> boids;
 
         EntityQuery boidsQuery;
@@ -44,8 +45,8 @@ namespace Boids
 
             spawner = new SpawnerEcs();
             spawner.Generate(config.spawnData);
-            positions = spawner.GetPositions(Allocator.TempJob);
-            directions = spawner.GetDirections(Allocator.TempJob);
+            positions = spawner.GetPositions(Allocator.Persistent).Reinterpret<CPosition>();
+            velocities = spawner.GetVelocities(Allocator.Persistent).Reinterpret<CVelocity>();
             boundsMin = spawner.boundsMin;
             boundsMax = spawner.boundsMax;
 
@@ -53,11 +54,29 @@ namespace Boids
 
             hashGridBuilder = new SpatialHashGridBuilder();
             hashGridBuilder.Inititalize(config.behaviourData.CohesionDistance, boundsMin, boundsMax);
-            hashGridBuilder.Build(positions);
+            hashGridBuilder.Build(spawner.GetPositions(Allocator.Persistent));
         }
 
         protected override void OnUpdate()
         {
+            JobHandle applyRulesJob = new ApplyRulesJob
+            {
+                behaviourData = config.behaviourData,
+
+                positions = this.positions,
+                velocities = this.velocities,
+
+                boundsMin = this.boundsMin,
+                conversionFactor = hashGridBuilder.GetConversionFactor(),
+                cellCountAxis = hashGridBuilder.GetCellCountAxis(),
+                cellCountXY = hashGridBuilder.GetCellCountXY(),
+
+                forwardVector = new float3(0f,0f,1f),
+
+                pivots = hashGridBuilder.GetPivots(),
+                hashTable = hashGridBuilder.GetHashTable(),
+                cellIndices = hashGridBuilder.GetCellIndices()
+            }.ScheduleParallel(boidsQuery, new JobHandle());
         }
 
         [BurstCompile]
@@ -66,7 +85,7 @@ namespace Boids
             EntityManager.Instantiate(config.boidPrefabEntity, boids);
 
             boidsQuery.CopyFromComponentDataArray<CPosition>(positions.Reinterpret<CPosition>());
-            boidsQuery.CopyFromComponentDataArray<CRotation>(directions.Reinterpret<CRotation>());
+            boidsQuery.CopyFromComponentDataArray<CVelocity>(velocities.Reinterpret<CVelocity>());
 
             new InitializeBoids()
             {
@@ -74,6 +93,8 @@ namespace Boids
             }.ScheduleParallel(boidsQuery);
         }
     }
+
+    
 
     [BurstCompile]
     partial struct InitializeBoids : IJobEntity

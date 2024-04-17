@@ -9,7 +9,7 @@ namespace Boids
     public class SpawnerEcs
     {
         private float3[] positions;
-        private quaternion[] directions;
+        private float3[] velocities;
 
         public float3 boundsMin { get; private set; }
         public float3 boundsMax { get; private set; }
@@ -18,7 +18,7 @@ namespace Boids
         public void Generate(CSpawnData settings)
         {
             positions = new float3[settings.boidCount];
-            directions = new quaternion[settings.boidCount];
+            velocities = new float3[settings.boidCount];
 
             switch (settings.shape)
             {
@@ -36,9 +36,9 @@ namespace Boids
             return new NativeArray<float3>(positions, allocator);
         }
 
-        public NativeArray<quaternion> GetDirections(Allocator allocator)
+        public NativeArray<float3> GetVelocities(Allocator allocator)
         {
-            return new NativeArray<quaternion>(directions, allocator);
+            return new NativeArray<float3>(velocities, allocator);
         }
 
         private void GenerateSpherePositions(CSpawnData settings)
@@ -57,7 +57,7 @@ namespace Boids
         private void GenerateCubeSpawn(CSpawnData settings)
         {
             GenerateCubePositions(settings);
-            GenerateCubeDirections();
+            GenerateCubeVelocities();
         }
 
         private void GenerateCubePositions(CSpawnData settings)
@@ -90,8 +90,8 @@ namespace Boids
                             {
                                 boundsMin = center - new float3(offset, offset, offset) * halfSize;
                                 boundsMax = center + new float3(offset, offset, offset) * halfSize;
-                                UnityEngine.Debug.Log("boundsMin: " + boundsMin);
-                                UnityEngine.Debug.Log("boundsMax: " + boundsMax);
+                                Debug.Log("boundsMin: " + boundsMin);
+                                Debug.Log("boundsMax: " + boundsMax);
                                 return;
                             }
                         }
@@ -102,13 +102,13 @@ namespace Boids
             }
         }
 
-        private void GenerateCubeDirections()
+        private void GenerateCubeVelocities()
         {
-            Quaternion randomDirection = Quaternion.Euler(Random.Range(0, 360f), Random.Range(0, 360f), Random.Range(0, 360f));
+            float3 randomDirection = new float3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
 
-            for(int i = 0; i < directions.Length; i++)
+            for(int i = 0; i < velocities.Length; i++)
             {
-                directions[i] = randomDirection;
+                velocities[i] = randomDirection;
             }
         }
     }

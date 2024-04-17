@@ -65,6 +65,8 @@ public class SpatialHashGridBuilder
     }
 
     public int3 GetCellCountAxis() => cellCountAxis;
+    public int GetCellCountXY() => cellCountXY;
+    public float GetConversionFactor() => conversionFactor;
 
     private void BuildContainers()
     {
@@ -108,8 +110,10 @@ public class SpatialHashGridBuilder
 
     private int HashFunction(int i)
     {
-        int3 cell = FloorToInt((positions[i] - boundsMin) * conversionFactor);
-        return GetCellIndex(cell);
+        float3 convertedPosition = (positions[i] - boundsMin) * conversionFactor;
+        return GetCellIndex(new int3((int)convertedPosition.x, 
+                                     (int)convertedPosition.y, 
+                                     (int)convertedPosition.z));
     }
 
     private int GetCellIndex(int3 cell)
@@ -119,9 +123,11 @@ public class SpatialHashGridBuilder
 
     private void SetCellCount()
     {
-        float3 v = (boundsMax - boundsMin) * conversionFactor;
+        float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
 
-        cellCountAxis = CeilToInt(v);
+        cellCountAxis = new int3((int)math.ceil(convertedGridLength).x, 
+                                 (int)math.ceil(convertedGridLength).y, 
+                                 (int)math.ceil(convertedGridLength).z);
         cellCountXY = cellCountAxis.x * cellCountAxis.y;
         cellCountXYZ = cellCountAxis.x * cellCountAxis.y * cellCountAxis.z;
     }

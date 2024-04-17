@@ -1,33 +1,32 @@
-using System.Collections;
-using System.Collections.Generic;
+
 using Unity.Burst;
 using Unity.Mathematics;
-using UnityEngine;
+using UnityEngine.Analytics;
 
 [BurstCompile]
 public class DataConversion
 {
     [BurstCompile]
-    public static int FloorToInt(float value)
+    public static void FloorToInt(in float input, ref int result)
     {
-        return (int)value;
+        result = (int)input;
     }
 
     [BurstCompile]
-    public static int3 FloorToInt(float3 value)
+    public static void FloorToInt3(in float3 input, ref int3 result)
     {
-        return new int3((int)value.x, (int)value.y, (int)value.z);
+        result = new int3((int)input.x, (int)input.y, (int)input.z);
     }
 
     [BurstCompile]
-    public static int CeilToInt(float value)
+    public static void CeilToInt(in float input, ref int result)
     {
-        return (int)math.ceil(value);
+        result = (int)math.ceil(input);
     }
 
     [BurstCompile]
-    public static int3 CeilToInt(float3 value)
+    public static void CeilToInt3(in float3 input, ref int3 result)
     {
-        return new int3((int)math.ceil(value).x, (int)math.ceil(value).y, (int)math.ceil(value).z);
+        result = new int3((int)math.ceil(input).x, (int)math.ceil(input).y, (int)math.ceil(input).z);
     }
 }
