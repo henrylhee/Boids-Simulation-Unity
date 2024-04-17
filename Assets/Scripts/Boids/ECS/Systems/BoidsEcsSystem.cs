@@ -59,6 +59,8 @@ namespace Boids
 
         protected override void OnUpdate()
         {
+            hashGridBuilder.Build(spawner.GetPositions(Allocator.Persistent));
+
             JobHandle applyRulesJob = new ApplyRulesJob
             {
                 behaviourData = config.behaviourData,
@@ -77,6 +79,13 @@ namespace Boids
                 hashTable = hashGridBuilder.GetHashTable(),
                 cellIndices = hashGridBuilder.GetCellIndices()
             }.ScheduleParallel(boidsQuery, new JobHandle());
+
+            new MoveBoidsJob
+            {
+                deltaTime = SystemAPI.Time.DeltaTime
+            }.ScheduleParallel(boidsQuery, applyRulesJob);
+
+
         }
 
         [BurstCompile]
