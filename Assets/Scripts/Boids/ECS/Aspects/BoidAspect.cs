@@ -12,32 +12,10 @@ namespace Boids
         private readonly RefRO<CBoidTag> boidTag;
 
         private readonly RefRW<LocalTransform> transform;
-        private readonly RefRW<CPosition> position;
-        private readonly RefRW<CVelocity> velocity;
-        private readonly RefRW<CAimedVelocity> aimedVelocity;
+        private readonly RefRW<CSpeed> speed;
+        private readonly RefRW<CTargetRotation> targetRotation;
+        private readonly RefRW<CTargetSpeed> targetSpeed;
         private readonly RefRW<CAngularSpeed> angularSpeed;
-
-        public float3 Position
-        {
-            get => position.ValueRO.value;
-            set { transform.ValueRW.Position = value; position.ValueRW.value = value; }
-        }
-        public float3 Velocity
-        {
-            get => velocity.ValueRO.value;
-            set { transform.ValueRW.Rotation = TransformHelpers.LookAtRotation(new float3(0f,0f,1f), value, new float3(0f,1f,0f)); 
-                  velocity.ValueRW.value = value; }
-        }
-        public float Speed
-        {
-            get => math.length(velocity.ValueRO.value);
-            set => velocity.ValueRW.value = math.normalize(velocity.ValueRW.value) * value;
-        }
-        public float AngularSpeed
-        {
-            get => angularSpeed.ValueRO.value;
-            set => angularSpeed.ValueRW.value = value;
-        }
     }
 }
 

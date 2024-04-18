@@ -1,74 +1,36 @@
 using Unity.Mathematics;
-using static DataConversion;
 using Unity.Collections;
-using System.Diagnostics;
-using Unity.VisualScripting;
 using Unity.Burst;
 
 [BurstCompile]
 public struct SpatialHashGridBuilder
 {
-    private float cellSize;
-    private float3 boundsMin;
-    private float3 boundsMax;
-
-    private int3 cellCountAxis;
-    private int cellCountXY;
-    private int cellCountXYZ;
-
-    private float conversionFactor;
-    private int voxelSearchFactor;
-    private int3 voxelSearchCount;
-
-    private float3[] positions;
-
-    int[] cellIndices;
-    int3[] pivots;
-    int[] hashTable;
-
-
-    public void Inititalize(float cellSize, int boidCount)
+    [BurstCompile]
+    public static void Build(in NativeArray<CPosition> positions, CBoidsConfig config, out NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
-        this.cellSize = cellSize;
-        conversionFactor = 1f / cellSize;
-
-        SetCellCount();
-
-        cellIndices = new int[boidCount];
-        hashTable = new int[boidCount];
-
-        //this.voxelSearchFactor = voxelSearchFactor;
-    }
-
-    public void Build(in NativeArray<CPosition> positions)
-    {
-        this.positions = positions.Reinterpret<float3>().ToArray();
-
-        UpdateBounds();
-        SetCellCount();
-        BuildContainers();
-    }
-
-    public void GetPivots(ref NativeArray<int3> pivots) => pivots.CopyFrom(this.pivots);
-    public void GetCellIndices(ref NativeArray<int> cellIndices) => cellIndices.CopyFrom(this.cellIndices);
-    public void GetHashTable(ref NativeArray<int> hashTable) => hashTable.CopyFrom(this.hashTable);
-    public int3 GetCellCountAxis() => cellCountAxis;
-    public int GetCellCountXY() => cellCountXY;
-    public float GetConversionFactor() => conversionFactor;
-    public float3 GetBoundsMin() => boundsMin;
-    public float3 GetBoundsMax() => boundsMax;
-
-    private void BuildContainers()
-    {
-        pivots = new int3[positions.Length];
-
-        for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
+        SpatialHashGridData data = new SpatialHashGridData()
         {
-            int cellIndex = HashFunction(boidIndex);
+            cellSize = config.behaviourData.CohesionDistance,
+            conversionFactor = 1f / config.behaviourData.CohesionDistance,
+            positions = positions.Reinterpret<float3>().ToArray(),
+        };
+
+        UpdateBounds(ref data);
+        SetCellCount(ref data);
+        BuildContainers(ref data, ref cellIndices, ref hashTable);
+        pivots = new NativeArray<int3>(data.pivotsTemp, Allocator.Temp);
+    }
+
+    [BurstCompile]
+    private static void BuildContainers(ref SpatialHashGridData data, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
+    {
+        for (int boidIndex = 0; boidIndex < data.positions.Length; boidIndex++)
+        {
+            int cellIndex = HashFunction(boidIndex, ref data);
             cellIndices[boidIndex] = cellIndex;
-            if(cellIndex >= cellCountXYZ)
+            if(cellIndex >= data.cellCountXYZ)
             {
-                float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
+                float3 convertedGridLength = (data.boundsMax - data.boundsMin) * data.conversionFactor;
                 //UnityEngine.Debug.Log("#####");
                 //UnityEngine.Debug.Log("convertedGridLength: " + convertedGridLength);
                 //UnityEngine.Debug.Log("cellCountAxis: " + cellCountAxis);
@@ -78,51 +40,52 @@ public struct SpatialHashGridBuilder
                 //                      " in boidIndex: " + boidIndex + " with position: " + positions[boidIndex]);
                 return;
             }
-            pivots[cellIndex].x++;
+
+            data.pivotsTemp[cellIndex].x++;
         }
 
         int accum = 0;
-        for (int cellIndex = 0; cellIndex < cellCountXYZ; cellIndex++)
+        for (int cellIndex = 0; cellIndex < data.cellCountXYZ; cellIndex++)
         {
-            int boidsCountCell = pivots[cellIndex].x;
+            int boidsCountCell = data.pivotsTemp[cellIndex].x;
             if (boidsCountCell != 0)
             {
-                pivots[cellIndex].y = accum;
+                data.pivotsTemp[cellIndex].y = accum;
                 accum += boidsCountCell;
-                pivots[cellIndex].z = accum;
+                data.pivotsTemp[cellIndex].z = accum;
             }
         }
 
-        int[] hashBucketCount = new int[pivots.Length];
-        for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
+        int[] hashBucketCount = new int[data.pivotsTemp.Length];
+        for (int boidIndex = 0; boidIndex < data.positions.Length; boidIndex++)
         {
             int cellIndex = cellIndices[boidIndex];
-            hashTable[pivots[cellIndex].y + hashBucketCount[cellIndex]] = boidIndex;
+            hashTable[data.pivotsTemp[cellIndex].y + hashBucketCount[cellIndex]] = boidIndex;
             hashBucketCount[cellIndex]++;
         }
     }
 
     [BurstCompile]
-    private int HashFunction(int i)
+    private static int HashFunction(int i, ref SpatialHashGridData data)
     {
-        float3 convertedPosition = (positions[i] - boundsMin) * conversionFactor;
+        float3 convertedPosition = (data.positions[i] - data.boundsMin) * data.conversionFactor;
         int3 cell = new int3((int)math.ceil(convertedPosition.x), 
                              (int)math.ceil(convertedPosition.y),
                              (int)math.ceil(convertedPosition.z)) - 1;
         return math.clamp(cell.x, 0, cell.x) + 
-               math.clamp(cell.y * cellCountAxis.x, 0, cell.y * cellCountAxis.x) + 
-               math.clamp(cell.z * cellCountXY, 0, cell.z * cellCountXY);
+               math.clamp(cell.y * data.cellCountAxis.x, 0, cell.y * data.cellCountAxis.x) + 
+               math.clamp(cell.z * data.cellCountXY, 0, cell.z * data.cellCountXY);
     }
 
     [BurstCompile]
-    private void UpdateBounds()
+    private static void UpdateBounds(ref SpatialHashGridData data)
     {
         float3 newBoundsMin = float3.zero;
         float3 newBoundsMax = float3.zero;
 
-        for (int i = 0;  i < positions.Length; i++)
+        for (int i = 0;  i < data.positions.Length; i++)
         {
-            float3 position = positions[i];
+            float3 position = data.positions[i];
 
             if(position.x > newBoundsMax.x) { newBoundsMax.x = position.x; }
             if(position.x < newBoundsMin.x) { newBoundsMin.x = position.x; }
@@ -134,20 +97,40 @@ public struct SpatialHashGridBuilder
             if (position.z < newBoundsMin.z) { newBoundsMin.z = position.z; }
         }
 
-        boundsMin = newBoundsMin;
-        boundsMax = newBoundsMax;
+        data.boundsMin = newBoundsMin;
+        data.boundsMax = newBoundsMax;
     }
 
     [BurstCompile]
-    private void SetCellCount()
+    private static void SetCellCount(ref SpatialHashGridData data)
     {
-        float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
+        float3 convertedGridLength = (data.boundsMax - data.boundsMin) * data.conversionFactor;
 
-        cellCountAxis = new int3((int)math.ceil(convertedGridLength).x, 
+        data.cellCountAxis = new int3((int)math.ceil(convertedGridLength).x, 
                                  (int)math.ceil(convertedGridLength).y, 
                                  (int)math.ceil(convertedGridLength).z);
 
-        cellCountXY = cellCountAxis.x * cellCountAxis.y;
-        cellCountXYZ = cellCountXY * cellCountAxis.z;
+        data.cellCountXY = data.cellCountAxis.x * data.cellCountAxis.y;
+        data.cellCountXYZ = data.cellCountXY * data.cellCountAxis.z;
+        data.pivotsTemp = new int3[data.cellCountXYZ];
+    }
+
+    struct SpatialHashGridData
+    {
+        public float cellSize;
+        public float3 boundsMin;
+        public float3 boundsMax;
+
+        public int3 cellCountAxis;
+        public int cellCountXY;
+        public int cellCountXYZ;
+
+        public float conversionFactor;
+        public int voxelSearchFactor;
+        public int3 voxelSearchCount;
+
+        public float3[] positions;
+
+        public int3[] pivotsTemp;
     }
 }

@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Boids
 {
@@ -11,11 +12,12 @@ namespace Boids
         //[ReadOnly] public float deltaTime;
         [ReadOnly] public CBehaviourData behaviourData;
         [ReadOnly] public NativeArray<CPosition> positions;
-        [ReadOnly] public NativeArray<CVelocity> velocities;
+        [ReadOnly] public NativeArray<CRotation> rotations;
+        [ReadOnly] public NativeArray<CSpeed> speeds;
 
         [ReadOnly] public NativeArray<int3> pivots;
         [ReadOnly] public NativeArray<int> hashTable;
-        [ReadOnly] public NativeArray<int> cellIndices; // putn into boidAspect only need current entities value
+        [ReadOnly] public NativeArray<int> cellIndices; // put into boidAspect only need current entities value
         [ReadOnly] public float conversionFactor;
         [ReadOnly] public int3 cellCountAxis;
         [ReadOnly] public int cellCountXY;
@@ -25,10 +27,11 @@ namespace Boids
         [ReadOnly] public float3 forwardVector;
 
         [BurstCompile(DisableSafetyChecks = true)]
-        public void Execute([EntityIndexInQuery] int boidIndex, in CPosition position, ref CAimedVelocity aimedVelocity)
+        public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CAimedVelocity aimedVelocity)
         {
+            float3 position = transform.Position;
             int cellIndex = cellIndices[boidIndex];
-            float3 convertedPosition = (position.value - boundsMin) * conversionFactor;
+            float3 convertedPosition = (position - boundsMin) * conversionFactor;
             int3 cell = new int3((int)convertedPosition.x, (int)convertedPosition.y, (int)convertedPosition.z);
 
             int3 pivot = pivots[cellIndex];
@@ -47,19 +50,19 @@ namespace Boids
             {
                 int boidIndexToCheck = hashTable[i];
                 float3 positionToCheck = positions[boidIndexToCheck].value;
-                float3 distVector = position.value - positionToCheck;
+                float3 distVector = position - positionToCheck;
 
                 if (distVector.x == 0 && distVector.y == 0 && distVector.z == 0)
                 {
                     continue;
                 }
 
-                if(math.distance(position.value, positionToCheck) > behaviourData.CohesionDistance) { continue; }
+                if(math.distance(position, positionToCheck) > behaviourData.CohesionDistance) { continue; }
                 cohesionVector += distVector;
-                allignmentVector += velocities[boidIndexToCheck].value;
+                allignmentVector += rotations[boidIndexToCheck].value * (forwardVector * speeds[]);
                 allignCohesCounter++;
 
-                if (math.distance(position.value, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
+                if (math.distance(position, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
                 repulsionVector += distVector;
                 repulsionCounter++;
             }
@@ -86,14 +89,14 @@ namespace Boids
                         {
                             int boidIndexToCheck = hashTable[i];
                             float3 positionToCheck = positions[boidIndexToCheck].value;
-                            float3 distVector = position.value - positionToCheck;
+                            float3 distVector = position - positionToCheck;
 
-                            if (math.distance(position.value, positionToCheck) > behaviourData.CohesionDistance) { continue; }
+                            if (math.distance(position, positionToCheck) > behaviourData.CohesionDistance) { continue; }
                             cohesionVector += distVector;
                             allignmentVector += velocities[boidIndexToCheck].value;
                             allignCohesCounter++;
 
-                            if (math.distance(position.value, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
+                            if (math.distance(position, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
                             repulsionVector += distVector;
                             repulsionCounter++;
                         }
