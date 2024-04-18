@@ -41,11 +41,19 @@ namespace Boids
             config = SystemAPI.GetSingleton<CBoidsConfig>();
 
             Initialize();
-            SpawnBoids();
+            SpawnBoids(ref state);
         }
 
         public void OnUpdate(ref SystemState state)
         {
+            positions = boidsQuery.ToComponentDataArray<CPosition>(Allocator.Persistent);
+            velocities = boidsQuery.ToComponentDataArray<CVelocity>(Allocator.Persistent);
+
+            hashGridBuilder.Build(in positions);
+            hashGridBuilder.GetPivots(ref pivots);
+            hashGridBuilder.GetHashTable(ref hashTable);
+            hashGridBuilder.GetCellIndices(ref cellIndices);
+
             applyRulesHandle = new ApplyRulesJob
             {
                 behaviourData = config.behaviourData,
@@ -72,13 +80,6 @@ namespace Boids
 
             moveBoidsHandle.Complete();
 
-            positions = boidsQuery.ToComponentDataArray<CPosition>(Allocator.Persistent);
-            velocities = boidsQuery.ToComponentDataArray<CVelocity>(Allocator.Persistent);
-
-            hashGridBuilder.Build(positions);
-            hashGridBuilder.GetPivots(ref pivots);
-            hashGridBuilder.GetHashTable(ref hashTable);
-            hashGridBuilder.GetCellIndices(ref cellIndices);
         }
 
         [BurstCompile]
@@ -96,12 +97,11 @@ namespace Boids
 
             hashGridBuilder = new SpatialHashGridBuilder();
             hashGridBuilder.Inititalize(config.behaviourData.CohesionDistance, config.spawnData.boidCount);
-            hashGridBuilder.Build(in positions);
         }
 
-        private void SpawnBoids()
+        private void SpawnBoids(ref SystemState state)
         {
-            EntityManager.Instantiate(config.boidPrefabEntity, boids);
+            state.EntityManager.Instantiate(config.boidPrefabEntity, boids);
 
             boidsQuery.CopyFromComponentDataArray<CPosition>(positions.Reinterpret<CPosition>());
             boidsQuery.CopyFromComponentDataArray<CVelocity>(velocities.Reinterpret<CVelocity>());
@@ -112,8 +112,6 @@ namespace Boids
             }.ScheduleParallel(boidsQuery, new JobHandle());
         }
     }
-
-    
 
     [BurstCompile]
     partial struct InitializeBoids : IJobEntity
