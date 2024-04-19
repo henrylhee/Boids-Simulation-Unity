@@ -4,11 +4,10 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Boids
 {
+    [BurstCompile]
     public partial struct BoidsEcsSystem : ISystem
     {
         SpatialHashGridBuilder hashGridBuilder;
@@ -17,7 +16,10 @@ namespace Boids
 
         SpawnDataBuilder spawnDataBuilder;
 
-        CBoidsConfig config;
+        Entity boidPrefab;
+        SpawnData spawnData;
+        BehaviourData behaviourData;
+        MovementData movementData;
 
         RuleJobDataBuilder ruleJobDataBuilder;
         NativeArray<CPosition> positions;
@@ -28,12 +30,11 @@ namespace Boids
 
         EntityQuery boidsQuery;
 
-        JobHandle dataBuilderHandle;
+        JobHandle rulesDataBuilderHandle;
         JobHandle initializeBoidsHandle;
         JobHandle applyRulesHandle;
         JobHandle moveBoidsHandle;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<CBoidsConfig>();
@@ -42,7 +43,10 @@ namespace Boids
         [BurstCompile]
         public void OnStartRunning(ref SystemState state)
         {
-            config = SystemAPI.GetSingleton<CBoidsConfig>();
+            boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
+            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
+            behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
+            movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
 
             Initialize(ref state);
             SpawnBoids(ref state);
@@ -51,29 +55,30 @@ namespace Boids
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            ruleJobDataBuilder.Gather(ref state, dataBuilderHandle, ref positions, ref rotations, ref speeds);
+            rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, initializeBoidsHandle, ref positions, ref rotations, ref speeds);
 
-            NativeArray<int3> pivots; 
-            SpatialHashGridBuilder.Build(in positions, config, out pivots, ref cellIndices, ref hashTable);
+            NativeArray<int3> pivots;
+            hashGridBuilder.Build(in positions, behaviourData, out pivots, ref cellIndices, ref hashTable);
 
             applyRulesHandle = new ApplyRulesJob
             {
-                behaviourData = config.behaviourData,
+                behaviourData = this.behaviourData,
 
                 positions = this.positions,
-                velocities = this.velocities,
+                rotations = this.rotations,
+                speeds = this.speeds,
 
-                boundsMin = hashGridBuilder.GetBoundsMin(),
-                conversionFactor = hashGridBuilder.GetConversionFactor(),
-                cellCountAxis = hashGridBuilder.GetCellCountAxis(),
-                cellCountXY = hashGridBuilder.GetCellCountXY(),
+                boundsMin = hashGridBuilder.boundsMin,
+                conversionFactor = hashGridBuilder.conversionFactor,
+                cellCountAxis = hashGridBuilder.cellCountAxis,
+                cellCountXY = hashGridBuilder.cellCountXY,
 
                 forwardVector = new float3(0f, 0f, 1f),
 
-                pivots = this.pivots,
+                pivots = pivots,
                 hashTable = this.hashTable,
                 cellIndices = this.cellIndices
-            }.ScheduleParallel(boidsQuery, initializeBoidsHandle);
+            }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
 
             moveBoidsHandle = new MoveBoidsJob
             {
@@ -85,26 +90,46 @@ namespace Boids
             pivots.Dispose();
         }
 
+        public void OnDestroy(ref SystemState state)
+        {
+            cellIndices.Dispose();
+            hashTable.Dispose();
+            positions.Dispose();
+            rotations.Dispose();
+            speeds.Dispose();
+            boids.Dispose();
+
+            boidsQuery.Dispose();
+        }
+
         private void Initialize(ref SystemState state)
         {
-            boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
+            //boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().WithOptions(EntityQueryOptions.IncludeSystems).Build();
+            boidsQuery = SystemAPI.QueryBuilder().WithAllRW<LocalTransform>().WithAllRW<CSpeed>().WithAllRW<CTargetRotation>().WithAllRW<CTargetSpeed>().Build();
 
-            boids = new NativeArray<Entity>(new Entity[config.spawnData.boidCount], Allocator.Persistent);
-            cellIndices = new NativeArray<int>(config.spawnData.boidCount, Allocator.Persistent);
-            hashTable = new NativeArray<int>(config.spawnData.boidCount, Allocator.Persistent);
+            boids = new NativeArray<Entity>(new Entity[spawnData.boidCount], Allocator.Persistent);
+            cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
+            hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
+            positions = new NativeArray<CPosition>(spawnData.boidCount, Allocator.Persistent);
+            rotations = new NativeArray<CRotation>(spawnData.boidCount, Allocator.Persistent);
+            speeds = new NativeArray<CSpeed>(spawnData.boidCount, Allocator.Persistent);
 
-            SpawnDataBuilder.GenerateCubeSpawnData(config.spawnData, out positions, out rotations, Allocator.Persistent);
+            SpawnData data = spawnData;
+            spawnDataBuilder = new SpawnDataBuilder();
+            spawnDataBuilder.GenerateCubeSpawnData(in data, out positions, out rotations, Allocator.Persistent);
+
+            hashGridBuilder = new SpatialHashGridBuilder();
 
             ruleJobDataBuilder = new RuleJobDataBuilder(ref state, boidsQuery);
         }
 
         private void SpawnBoids(ref SystemState state)
         {
-            state.EntityManager.Instantiate(config.boidPrefabEntity, boids);
+            state.EntityManager.Instantiate(boidPrefab, boids);
 
             initializeBoidsHandle = new InitializeBoids()
             {
-                startSpeed = config.movementData.startSpeed,
+                startSpeed = movementData.startSpeed,
                 positions = this.positions,
                 rotations = this.rotations,
             }.ScheduleParallel(boidsQuery, new JobHandle());

@@ -746,7 +746,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   startSpeed: 5
   scrollDeltaSpeed: 0.04
-  rotateSpeed: 2
+  rotateSpeed: 30
 --- !u!4 &1235510988
 Transform:
   m_ObjectHideFlags: 0

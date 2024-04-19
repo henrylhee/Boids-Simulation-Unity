@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: MovementConfig
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
-    <Speed>k__BackingField: 2
-    <Acceleration>k__BackingField: 1
-    <AngularSpeed>k__BackingField: 90
+    value:
+      startSpeed: 0.1
+      minSpeed: 0
+      maxSpeed: 0
+      Acceleration: 0
+      AngularAcceleration: 0

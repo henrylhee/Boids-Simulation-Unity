@@ -11,6 +11,7 @@ namespace Boids
     using Unity.Mathematics;
     using Unity.Transforms;
 
+    [BurstCompile]
     public struct RuleJobDataBuilder
     {
         private EntityQuery query;
@@ -29,8 +30,9 @@ namespace Boids
         public JobHandle Gather(ref SystemState state, JobHandle dependency, ref NativeArray<CPosition> positions, ref NativeArray<CRotation> rotations, ref NativeArray<CSpeed> speeds)
         {
             this.transformHandle.Update(ref state);
+            this.speedHandle.Update(ref state);
 
-            var firstEntityIndices = this.query.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, dependency, out var dependency1);
+            NativeArray<int> firstEntityIndices = this.query.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, dependency, out var dependency1);
             dependency = JobHandle.CombineDependencies(dependency, dependency1);
 
             dependency = new GatherPositionsJob
@@ -43,7 +45,7 @@ namespace Boids
                 Speeds = speeds,
 
                 FirstEntityIndices = firstEntityIndices,
-            }.ScheduleParallel(this.query, dependency);
+            }.ScheduleParallel(query, dependency);
 
             return dependency;
         }

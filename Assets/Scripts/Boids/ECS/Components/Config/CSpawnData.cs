@@ -6,17 +6,22 @@ using UnityEngine;
 [Serializable]
 public struct CSpawnData : IComponentData
 {
-    [field: SerializeField]
-    public int boidCount { get; private set; }
+    [SerializeField]
+    private SpawnData value;
+    public SpawnData Value => value;
+}
 
-    [field: SerializeField]
-    public float3 center { get; private set; }
+[Serializable]
+public struct SpawnData
+{
 
-    [field: SerializeField]
-    public GenerationShape shape { get; private set; }
+    public int boidCount;
 
-    [field: SerializeField]
-    public float spawnDistance { get; private set; }
+    public float3 center;
+
+    public GenerationShape shape;
+
+    public float spawnDistance;
 
     //[field: SerializeField]
     //public float shapeSize { get; private set; }

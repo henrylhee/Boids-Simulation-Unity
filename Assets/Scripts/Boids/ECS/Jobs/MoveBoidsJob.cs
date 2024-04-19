@@ -6,22 +6,19 @@ using Unity.Transforms;
 
 namespace Boids
 {
-    [BurstCompile(DisableSafetyChecks = true)]
+    [BurstCompile]
     partial struct MoveBoidsJob : IJobEntity
     {
         [ReadOnly] public float deltaTime;
 
 
-        [BurstCompile(DisableSafetyChecks = true)]
-        public void Execute(ref CPosition position, ref CVelocity velocity, in CAimedVelocity aimedVelocity , ref LocalTransform transform)
+        [BurstCompile]
+        public void Execute(in CTargetRotation targetRotation, in CTargetSpeed targetSpeed, ref LocalTransform transform, ref CSpeed speed)
         {
-            velocity.value = aimedVelocity.value;
-            position.value = position.value + velocity.value * deltaTime;
+            transform.Rotation = targetRotation.value;
+            speed.value = targetSpeed.value;
 
-            transform.Position = position.value;
-            transform.Rotation = TransformHelpers.LookAtRotation(new float3(0f, 0f, 1f),
-                                                                         velocity.value,
-                                                                         new float3(0f, 1f, 0f));
+            transform.Position = transform.Position + math.mul(targetRotation.value, new float3(0f,0f,1f) * targetSpeed.value);
         }
     }
 }

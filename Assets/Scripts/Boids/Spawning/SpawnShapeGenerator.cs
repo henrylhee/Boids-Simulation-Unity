@@ -6,10 +6,10 @@ namespace Boids
 {
     public class SpawnShapeGenerator
     {
-        private CSpawnData settings;
+        private SpawnData settings;
 
 
-        public Vector3[] GenerateBoidPositions(CSpawnData settings)
+        public Vector3[] GenerateBoidPositions(SpawnData settings)
         {
             this.settings = settings;
 

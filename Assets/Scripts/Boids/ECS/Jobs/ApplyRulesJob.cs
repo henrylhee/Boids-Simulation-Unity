@@ -6,11 +6,11 @@ using Unity.Transforms;
 
 namespace Boids
 {
-    [BurstCompile(DisableSafetyChecks = true)]
+    [BurstCompile]
     partial struct ApplyRulesJob : IJobEntity
     {
         //[ReadOnly] public float deltaTime;
-        [ReadOnly] public CBehaviourData behaviourData;
+        [ReadOnly] public BehaviourData behaviourData;
         [ReadOnly] public NativeArray<CPosition> positions;
         [ReadOnly] public NativeArray<CRotation> rotations;
         [ReadOnly] public NativeArray<CSpeed> speeds;
@@ -26,8 +26,8 @@ namespace Boids
 
         [ReadOnly] public float3 forwardVector;
 
-        [BurstCompile(DisableSafetyChecks = true)]
-        public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CAimedVelocity aimedVelocity)
+        [BurstCompile]
+        public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CTargetRotation targetRotation, ref CTargetSpeed targetSpeed)
         {
             float3 position = transform.Position;
             int cellIndex = cellIndices[boidIndex];
@@ -59,7 +59,7 @@ namespace Boids
 
                 if(math.distance(position, positionToCheck) > behaviourData.CohesionDistance) { continue; }
                 cohesionVector += distVector;
-                allignmentVector += rotations[boidIndexToCheck].value * (forwardVector * speeds[]);
+                allignmentVector += math.mul(rotations[boidIndexToCheck].value, forwardVector * speeds[boidIndexToCheck].value);
                 allignCohesCounter++;
 
                 if (math.distance(position, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
@@ -79,7 +79,7 @@ namespace Boids
                     for (int z = -1 + cell.z; z <= 1 + cell.z; z++)
                     {
                         if (z < 0 || z >= cellCountAxis.z) { continue; }
-                        if (x == 0 && y == 0 && z == 0) { continue; }
+                        if (x == cell.x && y == cell.y && z == cell.z) { continue; }
 
                         int cellIndexToCheck = x + y * cellCountAxis.x + z * cellCountXY;
                         int3 pivotToCheck = pivots[cellIndexToCheck];
@@ -93,7 +93,7 @@ namespace Boids
 
                             if (math.distance(position, positionToCheck) > behaviourData.CohesionDistance) { continue; }
                             cohesionVector += distVector;
-                            allignmentVector += velocities[boidIndexToCheck].value;
+                            allignmentVector += math.mul(rotations[boidIndexToCheck].value, forwardVector * speeds[boidIndexToCheck].value);
                             allignCohesCounter++;
 
                             if (math.distance(position, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
@@ -104,11 +104,13 @@ namespace Boids
                 }
             }
 
-            cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
+            cohesionVector = -1 * (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
             allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
-            repulsionVector = repulsionVector / repulsionCounter;
+            repulsionVector = (repulsionVector / repulsionCounter) * behaviourData.RepulsionStrength;
 
-            aimedVelocity.value = cohesionVector + allignmentVector + repulsionVector;
+            float3 resultVector = cohesionVector + allignmentVector + repulsionVector;
+            targetRotation.value = TransformHelpers.LookAtRotation(forwardVector, resultVector, new float3(0f,1f,0f));
+            targetSpeed.value = math.length(resultVector);
         }
     }
 }

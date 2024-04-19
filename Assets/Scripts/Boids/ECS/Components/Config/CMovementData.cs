@@ -5,19 +5,22 @@ using UnityEngine;
 [Serializable]
 public struct CMovementData : IComponentData
 {
-    [field: SerializeField]
-    public float startSpeed { get; private set; }
+    [SerializeField]
+    private MovementData value;
+    public MovementData Value => value;
+}
 
-    [field: SerializeField]
-    public float minSpeed { get; private set; }
+[Serializable]
+public struct MovementData
+{
+    public float startSpeed;
 
-    [field: SerializeField]
-    public float maxSpeed { get; private set; }
+    public float minSpeed;
 
-    [field: SerializeField,
-     Tooltip("Time in which the boid accelerates from 0 to max speed. Deceleration works in the same way.")]
-    public float Acceleration { get; private set; }
+    public float maxSpeed;
 
-    [field: SerializeField]
-    public float AngularAcceleration { get; private set; }
+    [Tooltip("Time in which the boid accelerates from 0 to max speed. Deceleration works in the same way.")]
+    public float Acceleration;
+
+    public float AngularAcceleration;
 }
