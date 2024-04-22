@@ -16,6 +16,6 @@ MonoBehaviour:
     value:
       startSpeed: 0.1
       minSpeed: 0
-      maxSpeed: 0
+      maxSpeed: 0.2
       Acceleration: 0
       AngularAcceleration: 0

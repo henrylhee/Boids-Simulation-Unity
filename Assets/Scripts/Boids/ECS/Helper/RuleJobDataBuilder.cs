@@ -32,6 +32,8 @@ namespace Boids
             this.transformHandle.Update(ref state);
             this.speedHandle.Update(ref state);
 
+            if (query.IsEmpty) { }
+
             NativeArray<int> firstEntityIndices = this.query.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, dependency, out var dependency1);
             dependency = JobHandle.CombineDependencies(dependency, dependency1);
 

@@ -4,11 +4,13 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEditor.Search;
+using UnityEngine;
 
 namespace Boids
 {
     [BurstCompile]
-    public partial struct BoidsEcsSystem : ISystem
+    public partial struct BoidsEcsSystem : ISystem, ISystemStartStop
     {
         SpatialHashGridBuilder hashGridBuilder;
         NativeArray<int> cellIndices;
@@ -26,8 +28,6 @@ namespace Boids
         NativeArray<CRotation> rotations;
         NativeArray<CSpeed> speeds;
 
-        NativeArray<Entity> boids;
-
         EntityQuery boidsQuery;
 
         JobHandle rulesDataBuilderHandle;
@@ -35,22 +35,17 @@ namespace Boids
         JobHandle applyRulesHandle;
         JobHandle moveBoidsHandle;
 
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<CBoidsConfig>();
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
-            if (boidsQuery.IsEmpty) { }
         }
 
         [BurstCompile]
         public void OnStartRunning(ref SystemState state)
         {
-            if (boidsQuery.IsEmpty) 
-            { 
-                boidsQuery.HasSingleton<JobHandle>();
-            }
-
             boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
             spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
             behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
@@ -58,19 +53,13 @@ namespace Boids
 
             Initialize(ref state);
             SpawnBoids(ref state);
-            if (boidsQuery.IsEmpty) { }
-
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            if (boidsQuery.IsEmpty)
-            {
-                rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, initializeBoidsHandle, ref positions, ref rotations, ref speeds);
-            }
-
-
+            rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, initializeBoidsHandle, ref positions, ref rotations, ref speeds);
+            rulesDataBuilderHandle.Complete();
 
             NativeArray<int3> pivots;
             hashGridBuilder.Build(in positions, behaviourData, out pivots, ref cellIndices, ref hashTable);
@@ -92,13 +81,14 @@ namespace Boids
 
                 pivots = pivots,
                 hashTable = this.hashTable,
-                cellIndices = this.cellIndices
+                cellIndices = this.cellIndices,
+
+                deltaTime = SystemAPI.Time.DeltaTime,
+                maxSpeed = movementData.maxSpeed
             }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
 
-            moveBoidsHandle = new MoveBoidsJob
-            {
-                deltaTime = SystemAPI.Time.DeltaTime
-            }.ScheduleParallel(boidsQuery, applyRulesHandle);
+            moveBoidsHandle = new MoveBoidsJob {}
+            .ScheduleParallel(boidsQuery, applyRulesHandle);
 
             moveBoidsHandle.Complete();
 
@@ -112,12 +102,10 @@ namespace Boids
             positions.Dispose();
             rotations.Dispose();
             speeds.Dispose();
-            boids.Dispose();
         }
 
         private void Initialize(ref SystemState state)
         {
-            boids = new NativeArray<Entity>(new Entity[spawnData.boidCount], Allocator.Persistent);
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             positions = new NativeArray<CPosition>(spawnData.boidCount, Allocator.Persistent);
@@ -135,7 +123,7 @@ namespace Boids
 
         private void SpawnBoids(ref SystemState state)
         {
-            state.EntityManager.Instantiate(boidPrefab, boids);
+            state.EntityManager.Instantiate(boidPrefab, spawnData.boidCount, Allocator.Persistent);
 
             initializeBoidsHandle = new InitializeBoids()
             {
@@ -146,6 +134,8 @@ namespace Boids
 
             initializeBoidsHandle.Complete();
         }
+
+        public void OnStopRunning(ref SystemState state) { }
     }
 
     [BurstCompile]

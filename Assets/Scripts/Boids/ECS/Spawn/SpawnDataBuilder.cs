@@ -16,18 +16,14 @@ namespace Boids
             float3 center = settings.center;
             float spawnDistance = settings.spawnDistance;
 
-            float3[] tempPositions = GenerateCubePositions(boidCount, center, spawnDistance);
-            quaternion[] tempRotations = GenerateCubeRotations(boidCount);
-
-            positions = new NativeArray<CPosition>(tempPositions.Length, allocator);
-            rotations = new NativeArray<CRotation>(tempRotations.Length, allocator);
+            positions = GenerateCubePositions(boidCount, center, spawnDistance, allocator);
+            rotations = GenerateCubeRotations(boidCount, allocator);
         }
 
         [BurstCompile]
-        public float3[] GenerateCubePositions(int boidCount, in float3 center, float spawnDistance)
+        public NativeArray<CPosition> GenerateCubePositions(int boidCount, in float3 center, float spawnDistance, Allocator allocator)
         {
-
-            float3[] positions = new float3[boidCount];
+            NativeArray<CPosition> positions = new NativeArray<CPosition>(boidCount, allocator);
             int edgeCount = 2;
             float offset = spawnDistance;
             int index = 0;
@@ -46,7 +42,7 @@ namespace Boids
                         {
                             if (index < boidCount)
                             {
-                                positions[index] = start + new float3(x * offset, y * offset, z * offset);
+                                positions[index] = new CPosition { value = start + new float3(x * offset, y * offset, z * offset) };
 
                                 index++;
                             }
@@ -64,9 +60,9 @@ namespace Boids
         }
 
         [BurstCompile]
-        public quaternion[] GenerateCubeRotations(int boidCount)
+        public NativeArray<CRotation> GenerateCubeRotations(int boidCount, Allocator allocator)
         {
-            quaternion[] rotationsResult = new quaternion[boidCount];
+            NativeArray<CRotation> rotationsResult = new NativeArray<CRotation>(boidCount, allocator);
             float3 randomDirection = new float3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
             float3 eyeWorldDirection = new float3(0f,0f,1f);
             float3 upWorldDirection = new float3(0f, 1f, 0f);
@@ -74,7 +70,7 @@ namespace Boids
 
             for(int i = 0; i < rotationsResult.Length; i++)
             {
-                rotationsResult[i] = randomQuaternion;
+                rotationsResult[i] = new CRotation { value = randomQuaternion };
             }
             return rotationsResult;
         }

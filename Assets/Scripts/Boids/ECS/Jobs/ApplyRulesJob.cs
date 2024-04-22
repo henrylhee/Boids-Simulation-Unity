@@ -25,6 +25,8 @@ namespace Boids
         [ReadOnly] public float3 boundsMin;
 
         [ReadOnly] public float3 forwardVector;
+        [ReadOnly] public float maxSpeed;
+        [ReadOnly] public float deltaTime;
 
         [BurstCompile]
         public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CTargetRotation targetRotation, ref CTargetSpeed targetSpeed)
@@ -104,13 +106,14 @@ namespace Boids
                 }
             }
 
-            cohesionVector = -1 * (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
+            cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
             allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
-            repulsionVector = (repulsionVector / repulsionCounter) * behaviourData.RepulsionStrength;
+            repulsionVector = -1 * (repulsionVector / repulsionCounter) * behaviourData.RepulsionStrength;
 
             float3 resultVector = cohesionVector + allignmentVector + repulsionVector;
             targetRotation.value = TransformHelpers.LookAtRotation(forwardVector, resultVector, new float3(0f,1f,0f));
-            targetSpeed.value = math.length(resultVector);
+            float resultLength = math.length(resultVector);
+            targetSpeed.value = math.clamp(resultLength * deltaTime, 0, maxSpeed);
         }
     }
 }
