@@ -35,14 +35,22 @@ namespace Boids
         JobHandle applyRulesHandle;
         JobHandle moveBoidsHandle;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<CBoidsConfig>();
+            boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
+            if (boidsQuery.IsEmpty) { }
         }
 
         [BurstCompile]
         public void OnStartRunning(ref SystemState state)
         {
+            if (boidsQuery.IsEmpty) 
+            { 
+                boidsQuery.HasSingleton<JobHandle>();
+            }
+
             boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
             spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
             behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
@@ -50,12 +58,19 @@ namespace Boids
 
             Initialize(ref state);
             SpawnBoids(ref state);
+            if (boidsQuery.IsEmpty) { }
+
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, initializeBoidsHandle, ref positions, ref rotations, ref speeds);
+            if (boidsQuery.IsEmpty)
+            {
+                rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, initializeBoidsHandle, ref positions, ref rotations, ref speeds);
+            }
+
+
 
             NativeArray<int3> pivots;
             hashGridBuilder.Build(in positions, behaviourData, out pivots, ref cellIndices, ref hashTable);
@@ -98,15 +113,10 @@ namespace Boids
             rotations.Dispose();
             speeds.Dispose();
             boids.Dispose();
-
-            boidsQuery.Dispose();
         }
 
         private void Initialize(ref SystemState state)
         {
-            //boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().WithOptions(EntityQueryOptions.IncludeSystems).Build();
-            boidsQuery = SystemAPI.QueryBuilder().WithAllRW<LocalTransform>().WithAllRW<CSpeed>().WithAllRW<CTargetRotation>().WithAllRW<CTargetSpeed>().Build();
-
             boids = new NativeArray<Entity>(new Entity[spawnData.boidCount], Allocator.Persistent);
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
@@ -133,6 +143,8 @@ namespace Boids
                 positions = this.positions,
                 rotations = this.rotations,
             }.ScheduleParallel(boidsQuery, new JobHandle());
+
+            initializeBoidsHandle.Complete();
         }
     }
 
