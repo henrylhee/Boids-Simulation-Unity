@@ -1,6 +1,7 @@
 using Unity.Mathematics;
 using Unity.Collections;
 using Unity.Burst;
+using UnityEngine.UIElements;
 
 [BurstCompile]
 public struct SpatialHashGridBuilder
@@ -19,8 +20,6 @@ public struct SpatialHashGridBuilder
     {
         conversionFactor = 1f / settings.CohesionDistance;
 
-        //positions.Reinterpret<float3>().CopyTo(this.positions);
-
         UpdateBounds(in positions);
         SetCellCount();
 
@@ -35,21 +34,23 @@ public struct SpatialHashGridBuilder
         for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
         {
             int cellIndex = HashFunction(positions[boidIndex].value);
-            cellIndices[boidIndex] = cellIndex;
-            //if(cellIndex >= cellCountXYZ || cellIndex < 0)
+
+            //if (cellIndex >= cellCountXYZ || cellIndex < 0)
             //{
             //    float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
             //    UnityEngine.Debug.Log("#####-----------:");
             //    UnityEngine.Debug.Log("boundsMin: " + boundsMin);
             //    UnityEngine.Debug.Log("boundsMax: " + boundsMax);
             //    UnityEngine.Debug.Log("position: " + positions[boidIndex].value);
+            //    UnityEngine.Debug.Log("position: " + positions[boidIndex+1].value);
             //    UnityEngine.Debug.Log("convertedGridLength: " + convertedGridLength);
             //    UnityEngine.Debug.Log("cellCountAxis: " + cellCountAxis);
             //    UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ +
             //                          " in boidIndex: " + boidIndex + " with position: " + positions[boidIndex].value);
             //    return;
             //}
-
+            cellIndices[boidIndex] = cellIndex;
+            
             pivots[cellIndex] = pivots[cellIndex] + new int3(1,0,0);
         }
 

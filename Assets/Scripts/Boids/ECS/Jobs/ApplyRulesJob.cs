@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -17,25 +18,21 @@ namespace Boids
 
         [ReadOnly] public NativeArray<int3> pivots;
         [ReadOnly] public NativeArray<int> hashTable;
-        [ReadOnly] public NativeArray<int> cellIndices; // put into boidAspect only need current entities value
+        [ReadOnly] public NativeArray<int> cellIndices;
         [ReadOnly] public float conversionFactor;
         [ReadOnly] public int3 cellCountAxis;
         [ReadOnly] public int cellCountXY;
         
         [ReadOnly] public float3 boundsMin;
 
-        [ReadOnly] public float3 forwardVector;
-        [ReadOnly] public float maxSpeed;
-        [ReadOnly] public float deltaTime;
 
         [BurstCompile]
-        public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CTargetRotation targetRotation, ref CTargetSpeed targetSpeed)
+        public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CTargetVector targetVector)
         {
             float3 position = transform.Position;
             int cellIndex = cellIndices[boidIndex];
             float3 convertedPosition = (position - boundsMin) * conversionFactor;
             int3 cell = new int3((int)convertedPosition.x, (int)convertedPosition.y, (int)convertedPosition.z);
-
             int3 pivot = pivots[cellIndex];
 
             float3 repulsionVector = float3.zero;
@@ -45,6 +42,9 @@ namespace Boids
             int allignCohesCounter = 0;
 
             float3 cohesionVector = float3.zero;
+
+            float cohesionDistance = behaviourData.CohesionDistance;
+            float repulsionDistance = behaviourData.RepulsionDistance;
 
 
             // iterate over all boids in the cell of the currently processed boid
@@ -59,14 +59,7 @@ namespace Boids
                     continue;
                 }
 
-                if(math.distance(position, positionToCheck) > behaviourData.CohesionDistance) { continue; }
-                cohesionVector += distVector;
-                allignmentVector += math.mul(rotations[boidIndexToCheck].value, forwardVector * speeds[boidIndexToCheck].value);
-                allignCohesCounter++;
-
-                if (math.distance(position, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
-                repulsionVector += distVector;
-                repulsionCounter++;
+                ProcessBoid(positionToCheck, distVector, rotations[boidIndexToCheck].value, speeds[boidIndexToCheck].value);
             }
 
             // get the cells surrounding the cell of the currently processed boid and iterate over all boids inside
@@ -93,14 +86,7 @@ namespace Boids
                             float3 positionToCheck = positions[boidIndexToCheck].value;
                             float3 distVector = position - positionToCheck;
 
-                            if (math.distance(position, positionToCheck) > behaviourData.CohesionDistance) { continue; }
-                            cohesionVector += distVector;
-                            allignmentVector += math.mul(rotations[boidIndexToCheck].value, forwardVector * speeds[boidIndexToCheck].value);
-                            allignCohesCounter++;
-
-                            if (math.distance(position, positionToCheck) > behaviourData.RepulsionDistance) { continue; }
-                            repulsionVector += distVector;
-                            repulsionCounter++;
+                            ProcessBoid(positionToCheck, distVector, rotations[boidIndexToCheck].value, speeds[boidIndexToCheck].value);
                         }
                     }
                 }
@@ -110,10 +96,22 @@ namespace Boids
             allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
             repulsionVector = -1 * (repulsionVector / repulsionCounter) * behaviourData.RepulsionStrength;
 
-            float3 resultVector = cohesionVector + allignmentVector + repulsionVector;
-            targetRotation.value = TransformHelpers.LookAtRotation(forwardVector, resultVector, new float3(0f,1f,0f));
-            float resultLength = math.length(resultVector);
-            targetSpeed.value = math.clamp(resultLength * deltaTime, 0, maxSpeed);
+            targetVector.value = cohesionVector + allignmentVector + repulsionVector;
+
+
+            void ProcessBoid(float3 positionToCheck, float3 distVector, quaternion rotation, float speed)
+            {
+                float distVectorLength = math.length(distVector);
+
+                if (distVectorLength > cohesionDistance) { return; }
+                cohesionVector += distVector;
+                allignmentVector += math.mul(rotation, new float3(0f,0f,1f) * speed);
+                allignCohesCounter++;
+
+                if (distVectorLength > repulsionDistance) { return; }
+                repulsionVector += (repulsionDistance - distVectorLength) * math.normalize(distVector);
+                repulsionCounter++;
+            } 
         }
     }
 }

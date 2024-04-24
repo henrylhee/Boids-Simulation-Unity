@@ -32,24 +32,60 @@ namespace Boids
             while (index < boidCount)
             {
                 halfSize = edgeCount / 2;
-                float3 start = center - new float3(offset, offset, offset) * halfSize;
 
-                for (int x = 0; x <= edgeCount; x++)
+                int xMax = halfSize;
+                for (int y = -halfSize; y <= halfSize; y++)
                 {
-                    for (int y = 0; y <= edgeCount; y++)
+                    for (int z = -halfSize; z <= halfSize; z++)
                     {
-                        for (int z = 0; z <= edgeCount; z++)
+                        if (index < boidCount)
                         {
-                            if (index < boidCount)
-                            {
-                                positions[index] = new CPosition { value = start + new float3(x * offset, y * offset, z * offset) };
+                            positions[index] = new CPosition { value = center + new float3(xMax * offset, y * offset, z * offset) };
+                            positions[index] = new CPosition { value = center + new float3(-xMax * offset, y * offset, z * offset) };
 
-                                index++;
-                            }
-                            else
-                            {
-                                return positions;
-                            }
+                            index++;
+                        }
+                        else
+                        {
+                            return positions;
+                        }
+                    }
+                }
+
+                int yMax = halfSize;
+                for (int x = -halfSize; x <= halfSize; x++)
+                {
+                    for (int z = -halfSize; z <= halfSize; z++)
+                    {
+                        if (index < boidCount)
+                        {
+                            positions[index] = new CPosition { value = center + new float3(x * offset, yMax * offset, z * offset) };
+                            positions[index] = new CPosition { value = center + new float3(x * offset, -yMax * offset, z * offset) };
+
+                            index++;
+                        }
+                        else
+                        {
+                            return positions;
+                        }
+                    }
+                }
+
+                int zMax = halfSize;
+                for (int x = -halfSize; x <= halfSize; x++)
+                {
+                    for (int y = -halfSize; y <= halfSize; y++)
+                    {
+                        if (index < boidCount)
+                        {
+                            positions[index] = new CPosition { value = center + new float3(x * offset, y * offset, zMax * offset) };
+                            positions[index] = new CPosition { value = center + new float3(x * offset, y * offset, -zMax * offset) };
+
+                            index++;
+                        }
+                        else
+                        {
+                            return positions;
                         }
                     }
                 }

@@ -1,8 +1,6 @@
 using Unity.Burst;
 using Unity.Entities;
-using Unity.Mathematics;
 using Unity.Transforms;
-using static UnityEngine.Rendering.DebugUI;
 
 namespace Boids
 {
@@ -14,9 +12,7 @@ namespace Boids
         private readonly RefRW<LocalTransform> transform;
         private readonly RefRW<CSpeed> speed;
 
-        private readonly RefRW<CTargetRotation> targetRotation;
-        private readonly RefRW<CTargetSpeed> targetSpeed;
-        private readonly RefRW<CAngularSpeed> angularSpeed;
+        private readonly RefRW<CTargetVector> targetVector;
     }
 }
 

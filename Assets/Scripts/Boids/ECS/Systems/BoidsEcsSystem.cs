@@ -4,6 +4,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
+using Unity.VisualScripting;
 using UnityEditor.Search;
 using UnityEngine;
 
@@ -29,6 +30,9 @@ namespace Boids
         NativeArray<CSpeed> speeds;
 
         EntityQuery boidsQuery;
+
+        ComponentTypeHandle<LocalTransform> transformHandle;
+        ComponentTypeHandle<CSpeed> speedHandle;
 
         JobHandle rulesDataBuilderHandle;
         JobHandle initializeBoidsHandle;
@@ -58,9 +62,10 @@ namespace Boids
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, initializeBoidsHandle, ref positions, ref rotations, ref speeds);
+            transformHandle.Update(ref state);
+            speedHandle.Update(ref state);
+            rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, transformHandle, speedHandle, new JobHandle(), ref positions, ref rotations, ref speeds);
             rulesDataBuilderHandle.Complete();
-
             NativeArray<int3> pivots;
             hashGridBuilder.Build(in positions, behaviourData, out pivots, ref cellIndices, ref hashTable);
 
@@ -77,21 +82,19 @@ namespace Boids
                 cellCountAxis = hashGridBuilder.cellCountAxis,
                 cellCountXY = hashGridBuilder.cellCountXY,
 
-                forwardVector = new float3(0f, 0f, 1f),
-
                 pivots = pivots,
                 hashTable = this.hashTable,
-                cellIndices = this.cellIndices,
-
-                deltaTime = SystemAPI.Time.DeltaTime,
-                maxSpeed = movementData.maxSpeed
+                cellIndices = this.cellIndices
             }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
 
-            moveBoidsHandle = new MoveBoidsJob {}
+            moveBoidsHandle = new MoveBoidsJob
+            {
+                deltaTime = SystemAPI.Time.DeltaTime,
+                maxSpeed = movementData.maxSpeed
+            }
             .ScheduleParallel(boidsQuery, applyRulesHandle);
 
             moveBoidsHandle.Complete();
-
             pivots.Dispose();
         }
 
@@ -112,13 +115,14 @@ namespace Boids
             rotations = new NativeArray<CRotation>(spawnData.boidCount, Allocator.Persistent);
             speeds = new NativeArray<CSpeed>(spawnData.boidCount, Allocator.Persistent);
 
-            SpawnData data = spawnData;
             spawnDataBuilder = new SpawnDataBuilder();
-            spawnDataBuilder.GenerateCubeSpawnData(in data, out positions, out rotations, Allocator.Persistent);
+            spawnDataBuilder.GenerateCubeSpawnData(in spawnData, out positions, out rotations, Allocator.Persistent);
 
             hashGridBuilder = new SpatialHashGridBuilder();
 
-            ruleJobDataBuilder = new RuleJobDataBuilder(ref state, boidsQuery);
+            transformHandle = state.GetComponentTypeHandle<LocalTransform>(true);
+            speedHandle = state.GetComponentTypeHandle<CSpeed>(true);
+            ruleJobDataBuilder = new RuleJobDataBuilder(boidsQuery);
         }
 
         private void SpawnBoids(ref SystemState state)
@@ -149,8 +153,7 @@ namespace Boids
         public void Execute([EntityIndexInQuery] int boidIndex, ref LocalTransform transform, ref CSpeed speed)
         {
             speed.value = startSpeed;
-            transform.Position = positions[boidIndex].value;
-            transform.Rotation = rotations[boidIndex].value;
+            transform = LocalTransform.FromPositionRotationScale(positions[boidIndex].value, rotations[boidIndex].value, 0.01f);
         }
     }
 }

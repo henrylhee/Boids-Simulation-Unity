@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -9,14 +10,20 @@ namespace Boids
     [BurstCompile]
     partial struct MoveBoidsJob : IJobEntity
     {
-
+        [ReadOnly] public float deltaTime;
+        [ReadOnly] public float maxSpeed;
 
         [BurstCompile]
-        public void Execute(in CTargetRotation targetRotation, in CTargetSpeed targetSpeed, ref LocalTransform transform, ref CSpeed speed)
+        public void Execute([EntityIndexInQuery] int boidIndex,in CTargetVector targetVector, ref LocalTransform transform, ref CSpeed speed)
         {
-            speed.value = targetSpeed.value;
-            float3 newPos = transform.Position + math.mul(targetRotation.value, new float3(0f, 0f, 1f) * targetSpeed.value);
-            transform = LocalTransform.FromPositionRotationScale(newPos, targetRotation.value, 0.01f);
+            float length = math.length(targetVector.value);
+            speed.value = math.clamp(length * deltaTime, 0, maxSpeed);
+
+            if(length > 0.000000001f) 
+            {
+                transform = transform.Translate(math.normalize(targetVector.value) * speed.value);
+                transform.Rotation = quaternion.LookRotation(targetVector.value, new float3(0f, 1f, 0f));
+            }
         }
     }
 }
