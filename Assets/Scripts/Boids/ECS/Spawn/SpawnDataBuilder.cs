@@ -27,7 +27,9 @@ namespace Boids
             int edgeCount = 2;
             float offset = spawnDistance;
             int index = 0;
-            int halfSize = 0;
+            int halfSize;
+            float randomness = 0.005f;
+            float3 randomVector;
 
             while (index < boidCount)
             {
@@ -38,12 +40,20 @@ namespace Boids
                 {
                     for (int z = -halfSize; z <= halfSize; z++)
                     {
-                        if (index < boidCount)
+                        if (index < boidCount-1)
                         {
-                            positions[index] = new CPosition { value = center + new float3(xMax * offset, y * offset, z * offset) };
-                            positions[index] = new CPosition { value = center + new float3(-xMax * offset, y * offset, z * offset) };
-
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+                            positions[index] = new CPosition { value = center + randomVector + new float3(xMax * offset, y * offset, z * offset) };
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+                            positions[index+1] = new CPosition { value = center + randomVector + new float3(-xMax * offset, y * offset, z * offset) };
+                            index += 2;
+                        }
+                        else if (index < boidCount)
+                        {
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+                            positions[index] = new CPosition { value = center + randomVector + new float3(xMax * offset, y * offset, z * offset) };
                             index++;
+                            return positions;
                         }
                         else
                         {
@@ -57,12 +67,23 @@ namespace Boids
                 {
                     for (int z = -halfSize; z <= halfSize; z++)
                     {
-                        if (index < boidCount)
+                        if (index < boidCount-1)
                         {
-                            positions[index] = new CPosition { value = center + new float3(x * offset, yMax * offset, z * offset) };
-                            positions[index] = new CPosition { value = center + new float3(x * offset, -yMax * offset, z * offset) };
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
+                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, yMax * offset, z * offset) };
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+
+                            positions[index+1] = new CPosition { value = center + randomVector + new float3(x * offset, -yMax * offset, z * offset) };
+                            index += 2;
+                        }
+                        else if(index < boidCount)
+                        {
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+
+                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, yMax * offset, z * offset) };
                             index++;
+                            return positions;
                         }
                         else
                         {
@@ -76,15 +97,26 @@ namespace Boids
                 {
                     for (int y = -halfSize; y <= halfSize; y++)
                     {
-                        if (index < boidCount)
+                        if (index < boidCount - 1)
                         {
-                            positions[index] = new CPosition { value = center + new float3(x * offset, y * offset, zMax * offset) };
-                            positions[index] = new CPosition { value = center + new float3(x * offset, y * offset, -zMax * offset) };
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
+                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, y * offset, zMax * offset) };
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+
+                            positions[index+1] = new CPosition { value = center + randomVector + new float3(x * offset, y * offset, -zMax * offset) };
+                            index += 2;
+                        }
+                        else if (index < boidCount)
+                        {
+                            randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
+
+                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, y * offset, zMax * offset) };
                             index++;
+                            return positions;
                         }
                         else
-                        {
+                        { 
                             return positions;
                         }
                     }
@@ -99,10 +131,7 @@ namespace Boids
         public NativeArray<CRotation> GenerateCubeRotations(int boidCount, Allocator allocator)
         {
             NativeArray<CRotation> rotationsResult = new NativeArray<CRotation>(boidCount, allocator);
-            float3 randomDirection = new float3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
-            float3 eyeWorldDirection = new float3(0f,0f,1f);
-            float3 upWorldDirection = new float3(0f, 1f, 0f);
-            quaternion randomQuaternion = TransformHelpers.LookAtRotation(eyeWorldDirection, randomDirection, upWorldDirection);
+            quaternion randomQuaternion = Random.rotation;
 
             for(int i = 0; i < rotationsResult.Length; i++)
             {

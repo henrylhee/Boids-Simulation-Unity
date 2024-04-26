@@ -1,4 +1,3 @@
-using Boids;
 using Unity.Entities;
 using UnityEngine;
 
@@ -6,7 +5,7 @@ namespace Boids
 {
     public class BoidsConfigAuthoring : MonoBehaviour
     {
-        public Config configSO;
+        public BoidConfigSO configSO;
         public GameObject boidPrefab;
 
         private class Baker : Baker<BoidsConfigAuthoring>

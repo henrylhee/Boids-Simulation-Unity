@@ -2,11 +2,9 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
-using Unity.VisualScripting;
-using UnityEditor.Search;
-using UnityEngine;
 
 namespace Boids
 {
@@ -28,6 +26,8 @@ namespace Boids
         NativeArray<CPosition> positions;
         NativeArray<CRotation> rotations;
         NativeArray<CSpeed> speeds;
+
+        NativeArray<Random> randoms;
 
         EntityQuery boidsQuery;
 
@@ -66,6 +66,7 @@ namespace Boids
             speedHandle.Update(ref state);
             rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, transformHandle, speedHandle, new JobHandle(), ref positions, ref rotations, ref speeds);
             rulesDataBuilderHandle.Complete();
+
             NativeArray<int3> pivots;
             hashGridBuilder.Build(in positions, behaviourData, out pivots, ref cellIndices, ref hashTable);
 
@@ -87,10 +88,18 @@ namespace Boids
                 cellIndices = this.cellIndices
             }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
 
+            float3 swarmObjective = new float3();
             moveBoidsHandle = new MoveBoidsJob
             {
                 deltaTime = SystemAPI.Time.DeltaTime,
-                maxSpeed = movementData.maxSpeed
+                maxSpeed = movementData.maxSpeed,
+                minSpeed = movementData.minSpeed,
+                swarmCenter = GetSwarmCenter(),
+                swarmObjective = swarmObjective,
+                objectiveCenterRatio = behaviourData.objectiveCenterRatio,
+                speedMulRules = movementData.speedMulRules,
+                maxRadiansRandom = (behaviourData.DirectionRandomness/360f) * math.PI * 2f,
+                randoms = this.randoms
             }
             .ScheduleParallel(boidsQuery, applyRulesHandle);
 
@@ -105,6 +114,7 @@ namespace Boids
             positions.Dispose();
             rotations.Dispose();
             speeds.Dispose();
+            randoms.Dispose();
         }
 
         private void Initialize(ref SystemState state)
@@ -114,6 +124,12 @@ namespace Boids
             positions = new NativeArray<CPosition>(spawnData.boidCount, Allocator.Persistent);
             rotations = new NativeArray<CRotation>(spawnData.boidCount, Allocator.Persistent);
             speeds = new NativeArray<CSpeed>(spawnData.boidCount, Allocator.Persistent);
+
+            randoms = new NativeArray<Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+            {
+                randoms[i] = new Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+            }
 
             spawnDataBuilder = new SpawnDataBuilder();
             spawnDataBuilder.GenerateCubeSpawnData(in spawnData, out positions, out rotations, Allocator.Persistent);
@@ -132,11 +148,24 @@ namespace Boids
             initializeBoidsHandle = new InitializeBoids()
             {
                 startSpeed = movementData.startSpeed,
+                startAngularSpeed = (movementData.startAngularSpeed/360f) * 2f * math.PI,
                 positions = this.positions,
                 rotations = this.rotations,
+
             }.ScheduleParallel(boidsQuery, new JobHandle());
 
             initializeBoidsHandle.Complete();
+        }
+
+        private float3 GetSwarmCenter()
+        {
+            float3 result = new float3();
+
+            for(int i = 0; i < positions.Length; i++)
+            {
+                result += positions[i].value;
+            }
+            return result / positions.Length;
         }
 
         public void OnStopRunning(ref SystemState state) { }
@@ -146,13 +175,15 @@ namespace Boids
     partial struct InitializeBoids : IJobEntity
     {
         [ReadOnly] public float startSpeed;
+        [ReadOnly] public float startAngularSpeed;
         [ReadOnly] public NativeArray<CPosition> positions;
         [ReadOnly] public NativeArray<CRotation> rotations;
 
         [BurstCompile]
-        public void Execute([EntityIndexInQuery] int boidIndex, ref LocalTransform transform, ref CSpeed speed)
+        public void Execute([EntityIndexInQuery] int boidIndex, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
         {
             speed.value = startSpeed;
+            angularSpeed.value = startAngularSpeed;
             transform = LocalTransform.FromPositionRotationScale(positions[boidIndex].value, rotations[boidIndex].value, 0.01f);
         }
     }

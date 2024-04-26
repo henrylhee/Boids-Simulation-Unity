@@ -2,16 +2,16 @@ using UnityEngine;
 
 namespace Boids
 {
-    [CreateAssetMenu(menuName = "ScriptableObjects/Config", fileName = "Config")]
-    public class Config : ScriptableObject
+    [CreateAssetMenu(menuName = "ScriptableObjects/BoidConfig", fileName = "BoidConfig")]
+    public class BoidConfigSO : ScriptableObject
     {
-        [field:SerializeField]
+        [field: SerializeField]
         public SpawnConfigSO spawnConfigSO { get; private set; }
 
-        [field:SerializeField]
+        [field: SerializeField]
         public MovementConfigSO movementConfigSO { get; private set; }
 
-        [field:SerializeField]
+        [field: SerializeField]
         public BehaviourConfigSO behaviourConfigSO { get; private set; }
     }
 }

@@ -11,6 +11,7 @@ namespace Boids
 
         private readonly RefRW<LocalTransform> transform;
         private readonly RefRW<CSpeed> speed;
+        private readonly RefRW<CAngularSpeed> angularSpeed;
 
         private readonly RefRW<CTargetVector> targetVector;
     }

@@ -30,6 +30,18 @@ public struct BehaviourData
      Range(0, 1)]
     public float RepulsionStrength;
 
-    [Tooltip("The strength with whom the boid is getting repulsed from other closeby boids.")]
+    [Tooltip("The strength with whom the boid is getting repulsed from other closeby boids."),
+     Range(0,1)]
     public float AllignmentStrength;
+
+    [Tooltip("The randomness of the targetVector direction in degrees."),
+     Range(0, 10)]
+    public float DirectionRandomness;
+
+    [Tooltip("The minimum Distance between boids. Getting enforced by internal calculations.")]
+    public float MinDistance;
+
+    [Tooltip("The ratio between the movement vectors of swarmObjective / swarmCenter."),
+     Range(0, 1)]
+    public float objectiveCenterRatio;
 }

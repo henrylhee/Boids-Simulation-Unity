@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
     value:
-      boidCount: 1000
+      boidCount: 3000
       center:
         x: 0
         y: 0
         z: 0
       shape: 1
-      spawnDistance: 0.02
+      spawnDistance: 0.03

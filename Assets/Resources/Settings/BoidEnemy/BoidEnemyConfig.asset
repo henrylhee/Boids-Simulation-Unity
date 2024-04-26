@@ -9,13 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c64fc418c9ac59548831a5414e292c32, type: 3}
-  m_Name: MovementConfig
+  m_Script: {fileID: 11500000, guid: cdbd9457d4e67eb4998f5a8e3d6ad017, type: 3}
+  m_Name: BoidEnemyConfig
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
-    value:
-      startSpeed: 0.1
-      minSpeed: 0
-      maxSpeed: 0.2
-      Acceleration: 0
-      AngularAcceleration: 0
+    <speed>k__BackingField: 2
+    <angularSpeed>k__BackingField: 40
