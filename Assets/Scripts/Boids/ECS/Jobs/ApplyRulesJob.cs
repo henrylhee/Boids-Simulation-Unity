@@ -38,9 +38,11 @@ namespace Boids
 
             float3 repulsionVector = float3.zero;
             int repulsionCounter = 0;
+            float repulsionMul = 1f / behaviourData.RepulsionDistance;
 
             float3 allignmentVector = float3.zero;
             int allignCohesCounter = 0;
+            float allignCohesMul = 1f / behaviourData.CohesionDistance;
 
             float3 cohesionVector = float3.zero;
 
@@ -95,16 +97,16 @@ namespace Boids
             
             if (repulsionCounter > 0)
             {
-                cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
-                allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
-                repulsionVector = -1 * repulsionVector * behaviourData.RepulsionStrength;
+                cohesionVector = (cohesionVector / allignCohesCounter) * allignCohesMul * behaviourData.CohesionStrength;
+                allignmentVector = (allignmentVector / allignCohesCounter) * allignCohesMul * behaviourData.AllignmentStrength;
+                repulsionVector = -1 * repulsionVector * repulsionMul * behaviourData.RepulsionStrength;
 
                 targetVector.value = cohesionVector + allignmentVector + repulsionVector;
             }
             else if(allignCohesCounter > 0)
             {
-                cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
-                allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
+                cohesionVector = (cohesionVector / allignCohesCounter) * allignCohesMul * behaviourData.CohesionStrength;
+                allignmentVector = (allignmentVector / allignCohesCounter) * allignCohesMul * behaviourData.AllignmentStrength;
 
                 targetVector.value = cohesionVector + allignmentVector;
             }
@@ -113,23 +115,17 @@ namespace Boids
                 targetVector.value = new float3(0f,0f,0f);
             }
 
-            //if (boidIndex == 50)
+            //if (boidIndex == 500)
             //{
-            //    UnityEngine.Debug.Log("----> 50: ");
-
-            //    UnityEngine.Debug.Log("allignCohesCounter: " + allignCohesCounter);
-            //    UnityEngine.Debug.Log("cohesionVector: " + math.length(cohesionVector));
-            //    UnityEngine.Debug.Log("allignmentVector: " + math.length(allignmentVector));
-            //    UnityEngine.Debug.Log("repulsionVector: " + math.length(repulsionVector));
+            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
             //}
-            //if (boidIndex == 200)
+            //if (boidIndex == 999)
             //{
-            //    UnityEngine.Debug.Log("----> 200: ");
-
-            //    UnityEngine.Debug.Log("cohesionVector: " + math.length(cohesionVector));
-            //    UnityEngine.Debug.Log("allignmentVector: " + math.length(allignmentVector));
-            //    UnityEngine.Debug.Log("repulsionVector: " + math.length(repulsionVector));
-            //    UnityEngine.Debug.Log("targetVector.value: " + math.length(targetVector.value));
+            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
+            //}
+            //if (boidIndex == 1)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
             //}
 
             void ProcessBoid(float3 distVector, quaternion rotation, float speed)

@@ -40,9 +40,6 @@ namespace Boids
         JobHandle initializeBoidsHandle;
         JobHandle applyRulesHandle;
         JobHandle moveBoidsHandle;
-        JobHandle systemDependency;
-
-        BuildPhysicsWorld buildPhysicsWorld;
 
 
         [BurstCompile]

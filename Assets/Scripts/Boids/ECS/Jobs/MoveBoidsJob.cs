@@ -20,7 +20,7 @@ namespace Boids
         [ReadOnly] public float objectiveCenterRatio;
         [ReadOnly] public float speedMulRules;
         [NativeDisableContainerSafetyRestriction] public NativeArray<Random> randoms;
-        [NativeSetThreadIndex] int threadId;
+        [NativeSetThreadIndex] [ReadOnly] int threadId;
 
         [BurstCompile]
         public void Execute([EntityIndexInQuery] int boidIndex, in CTargetVector targetVector, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
@@ -34,6 +34,19 @@ namespace Boids
                 float3 centerVector = math.normalize(swarmCenter - position) * (1 - objectiveCenterRatio);
                 velocity = math.normalize(objectiveVector + centerVector) * (minSpeed - length) + velocity;
             }
+
+            //if (boidIndex == 500)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 500 -: " + "----> length: " + length + ". adjusted length: " + math.length(velocity));
+            //}
+            //if (boidIndex == 999)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 999 -: " + "----> length: " + length + ". adjusted length: " + math.length(velocity));
+            //                }
+            //if (boidIndex == 1)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 1 -: " + "----> length: " + length + ". adjusted length: " + math.length(velocity));
+            //}
 
             length = math.length(velocity);
             speed.value = math.clamp(length, 0, maxSpeed);
@@ -55,22 +68,7 @@ namespace Boids
                 transform = transform.Translate(math.mul(smoothRotation, new float3(0f,0f,1f)) * length);
 
 
-                //if (boidIndex == 50)
-                //{
-                //    UnityEngine.Debug.Log("----> 50: randomVector: " + randomVector);
-
-                //    UnityEngine.Debug.Log("adjustedTargetVector: " + adjustedTargetVector);
-                //    UnityEngine.Debug.Log("targetVector.value: " + targetVector.value);
-
-                //}
-                //if (boidIndex == 51)
-                //{
-                //    UnityEngine.Debug.Log("----> 200: randomVector: " + randomVector);
-
-                //    UnityEngine.Debug.Log("adjustedTargetVector: " + adjustedTargetVector);
-                //    UnityEngine.Debug.Log("targetVector.value: " + targetVector.value);
-
-                //}
+                
             }
         }
     }
