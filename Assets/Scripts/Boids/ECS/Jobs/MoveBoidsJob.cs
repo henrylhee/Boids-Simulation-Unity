@@ -48,7 +48,8 @@ namespace Boids
                 randoms[threadId] = random;
 
                 quaternion targetRotation = quaternion.LookRotation(adjustedVelocity, new float3(0f, 1f, 0f));
-                quaternion smoothRotation = MathExtensions.RotateTowards(transform.Rotation, targetRotation, angularSpeed.value * deltaTime);
+                quaternion smoothRotation;
+                MathExtensions.RotateTowards(in transform.Rotation, in targetRotation, out smoothRotation, angularSpeed.value * deltaTime);
                 transform.Rotation = smoothRotation;
 
                 transform = transform.Translate(math.mul(smoothRotation, new float3(0f,0f,1f)) * length);

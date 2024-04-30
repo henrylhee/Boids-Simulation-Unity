@@ -21,4 +21,4 @@ MonoBehaviour:
       AllignmentStrength: 1
       DirectionRandomness: 0.4
       MinDistance: 0.005
-      objectiveCenterRatio: 0.234
+      objectiveCenterRatio: 0.062

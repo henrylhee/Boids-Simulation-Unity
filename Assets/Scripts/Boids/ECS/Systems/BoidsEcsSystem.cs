@@ -4,11 +4,13 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
+using Unity.Physics;
+using Unity.Physics.Systems;
 using Unity.Transforms;
 
 namespace Boids
 {
-    [BurstCompile]
+    [UpdateAfter(typeof(ExportPhysicsWorld))]
     public partial struct BoidsEcsSystem : ISystem, ISystemStartStop
     {
         SpatialHashGridBuilder hashGridBuilder;
@@ -38,6 +40,9 @@ namespace Boids
         JobHandle initializeBoidsHandle;
         JobHandle applyRulesHandle;
         JobHandle moveBoidsHandle;
+        JobHandle systemDependency;
+
+        BuildPhysicsWorld buildPhysicsWorld;
 
 
         [BurstCompile]
@@ -45,11 +50,14 @@ namespace Boids
         {
             state.RequireForUpdate<CBoidsConfig>();
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
+            //buildPhysicsWorld = World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<BuildPhysicsWorld>();
         }
 
         [BurstCompile]
         public void OnStartRunning(ref SystemState state)
         {
+            //this.RegisterPhysicsRuntimeSystemReadWrite();
+
             boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
             spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
             behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
@@ -62,6 +70,8 @@ namespace Boids
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            state.Dependency.Complete();
+
             transformHandle.Update(ref state);
             speedHandle.Update(ref state);
             rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, transformHandle, speedHandle, new JobHandle(), ref positions, ref rotations, ref speeds);
@@ -86,7 +96,7 @@ namespace Boids
                 pivots = pivots,
                 hashTable = this.hashTable,
                 cellIndices = this.cellIndices
-            }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
+            }.ScheduleParallel(boidsQuery, state.Dependency);
 
             float3 swarmObjective = new float3();
             moveBoidsHandle = new MoveBoidsJob

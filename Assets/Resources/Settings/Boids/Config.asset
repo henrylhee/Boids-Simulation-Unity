@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6e79644a9a78a2469094496685d65cf, type: 3}
   m_Name: Config
   m_EditorClassIdentifier: 
-  <spawnConfigSO>k__BackingField: {fileID: 11400000, guid: 93f6f1e56b9ef734a8f61116c1234122, type: 2}
-  <movementConfigSO>k__BackingField: {fileID: 11400000, guid: 3f19419510e55e54db604a1ba0ee7856, type: 2}
+  <spawnConfigSO>k__BackingField: {fileID: 11400000, guid: e8c731b23331af54ca2664926776701d, type: 2}
+  <movementConfigSO>k__BackingField: {fileID: 11400000, guid: 453f6e308d55fa049b020458efc5a2ea, type: 2}
   <behaviourConfigSO>k__BackingField: {fileID: 11400000, guid: fee34864671e16a4fa10c0bd4a220a8a, type: 2}
