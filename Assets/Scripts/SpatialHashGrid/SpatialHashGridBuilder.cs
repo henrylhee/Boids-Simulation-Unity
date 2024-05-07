@@ -15,25 +15,24 @@ public struct SpatialHashGridBuilder
 
 
     [BurstCompile]
-    public void Build(in NativeArray<CPosition> positions, in BehaviourData settings, out NativeArray<int3> pivots, ref NativeArray<int> cellIndices,
-                             ref NativeArray<int> hashTable)
+    public void Build(in NativeArray<RuleData> ruleData, in BehaviourData settings, out NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
         conversionFactor = 1f / settings.CohesionDistance;
 
-        UpdateBounds(in positions);
+        UpdateBounds(in ruleData);
         SetCellCount();
 
         pivots = new NativeArray<int3>(cellCountXYZ, Allocator.TempJob);
 
-        BuildContainers(in positions, ref pivots, ref cellIndices, ref hashTable);
+        BuildContainers(in ruleData, ref pivots, ref cellIndices, ref hashTable);
     }
 
     [BurstCompile]
-    private void BuildContainers(in NativeArray<CPosition> positions, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
+    private void BuildContainers(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
-        for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
+        for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
         {
-            int cellIndex = HashFunction(positions[boidIndex].value);
+            int cellIndex = HashFunction(ruleData[boidIndex].position);
 
             //if (cellIndex >= cellCountXYZ || cellIndex < 0)
             //{
@@ -66,7 +65,7 @@ public struct SpatialHashGridBuilder
         }
 
         NativeArray<int> hashBucketCount = new NativeArray<int>(pivots.Length,Allocator.Temp);
-        for (int boidIndex = 0; boidIndex < positions.Length; boidIndex++)
+        for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
         {
             int cellIndex = cellIndices[boidIndex];
             hashTable[pivots[cellIndex].y + hashBucketCount[cellIndex]] = boidIndex;
@@ -85,14 +84,14 @@ public struct SpatialHashGridBuilder
     }
 
     [BurstCompile]
-    private void UpdateBounds(in NativeArray<CPosition> positions)
+    private void UpdateBounds(in NativeArray<RuleData> ruleData)
     {
         float3 newBoundsMin = float3.zero;
         float3 newBoundsMax = float3.zero;
 
-        for (int i = 0;  i < positions.Length; i++)
+        for (int i = 0;  i < ruleData.Length; i++)
         {
-            float3 position = positions[i].value;
+            float3 position = ruleData[i].position;
 
             if(position.x > newBoundsMax.x) { newBoundsMax.x = position.x; }
             if(position.x < newBoundsMin.x) { newBoundsMin.x = position.x; }

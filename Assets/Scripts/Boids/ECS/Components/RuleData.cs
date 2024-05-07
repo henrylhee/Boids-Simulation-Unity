@@ -4,7 +4,9 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-public struct CRuleVector : IComponentData
+public struct RuleData
 {
-    public float3 value;
+    public float3 position;
+    public quaternion rotation;
+    public float speed;
 }

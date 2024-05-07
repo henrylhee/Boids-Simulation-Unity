@@ -22,9 +22,8 @@ namespace Boids
         }
 
         public JobHandle Gather(ref SystemState state, ComponentTypeHandle<LocalTransform> transformHandle, ComponentTypeHandle<CSpeed> speedHandle, 
-                                JobHandle dependency, ref NativeArray<CPosition> positions, ref NativeArray<CRotation> rotations, ref NativeArray<CSpeed> speeds)
+                                ref NativeArray<RuleData> ruleData, JobHandle dependency)
         {
-            
             NativeArray<int> firstEntityIndices = this.query.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, dependency, out var dependency1);
             dependency = JobHandle.CombineDependencies(dependency, dependency1);
 
@@ -33,11 +32,9 @@ namespace Boids
                 TransformHandle = transformHandle,
                 SpeedHandle = speedHandle,
 
-                Positions = positions,
-                Rotations = rotations,
-                Speeds = speeds,
+                RuleDataArray = ruleData,
 
-                FirstEntityIndices = firstEntityIndices,
+                FirstEntityIndices = firstEntityIndices
             }.ScheduleParallel(query, dependency);
 
             return dependency;
@@ -49,35 +46,35 @@ namespace Boids
             [ReadOnly] public ComponentTypeHandle<LocalTransform> TransformHandle;
             [ReadOnly] public ComponentTypeHandle<CSpeed> SpeedHandle;
 
-            [NativeDisableContainerSafetyRestriction] public NativeArray<CPosition> Positions;
-            [NativeDisableContainerSafetyRestriction] public NativeArray<CRotation> Rotations;
-            [NativeDisableContainerSafetyRestriction] public NativeArray<CSpeed> Speeds;
+            [NativeDisableContainerSafetyRestriction] public NativeArray<RuleData> RuleDataArray;
 
             [ReadOnly] public NativeArray<int> FirstEntityIndices;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var positionPtr = (float3*)this.Positions.GetUnsafePtr();
-                var rotationPtr = (quaternion*)this.Rotations.GetUnsafePtr();
-                var speedPtr = (float*)this.Speeds.GetUnsafePtr();
+                var ruleDataPtr = (RuleData*)this.RuleDataArray.GetUnsafePtr();
 
-                var positionDst = positionPtr + this.FirstEntityIndices[unfilteredChunkIndex];
-                var rotationDst = rotationPtr + this.FirstEntityIndices[unfilteredChunkIndex];
-                var speedDst = speedPtr + this.FirstEntityIndices[unfilteredChunkIndex];
-
-                var positionSize = UnsafeUtility.SizeOf<float3>();
-                var rotationSize = UnsafeUtility.SizeOf<quaternion>();
+                var transformSize = UnsafeUtility.SizeOf<LocalTransform>();
+                var posRotSize = UnsafeUtility.SizeOf<PosRot>();
                 var speedSize = UnsafeUtility.SizeOf<float>();
+                var ruleDataSize = UnsafeUtility.SizeOf<RuleData>();
 
-                var positions = chunk.GetNativeArray(ref this.TransformHandle).Slice().SliceWithStride<float3>(0);
-                var rotations = chunk.GetNativeArray(ref this.TransformHandle).Slice().SliceWithStride<quaternion>(12);
+                var ruleDataDst = ruleDataPtr + this.FirstEntityIndices[unfilteredChunkIndex];
+                var speedOffset = posRotSize;
+
+                var posRots = chunk.GetNativeArray(ref this.TransformHandle).Slice().SliceWithStride<PosRot>(0);
                 var speeds = chunk.GetNativeArray(ref this.SpeedHandle).Slice().SliceWithStride<float>(0);
 
-                UnsafeUtility.MemCpyStride(positionDst, positionSize, positions.GetUnsafeReadOnlyPtr(), positions.Stride, positionSize, positions.Length);
-                UnsafeUtility.MemCpyStride(rotationDst, rotationSize, rotations.GetUnsafeReadOnlyPtr(), rotations.Stride, rotationSize, rotations.Length);
-                UnsafeUtility.MemCpyStride(speedDst, speedSize, speeds.GetUnsafeReadOnlyPtr(), speeds.Stride, speedSize, speeds.Length);
+                UnsafeUtility.MemCpyStride(ruleDataDst, ruleDataSize, posRots.GetUnsafeReadOnlyPtr(), transformSize, posRotSize, speeds.Length);
+                UnsafeUtility.MemCpyStride(ruleDataDst + speedOffset, ruleDataSize, speeds.GetUnsafeReadOnlyPtr(), speeds.Stride, speedSize, speeds.Length);
             }
+        }
+
+        struct PosRot
+        {
+            public float3 position;
+            public quaternion rotation;
         }
     }
 }

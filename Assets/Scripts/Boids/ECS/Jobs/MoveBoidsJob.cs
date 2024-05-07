@@ -23,16 +23,16 @@ namespace Boids
         [NativeSetThreadIndex] [ReadOnly] int threadId;
 
         [BurstCompile]
-        public void Execute([EntityIndexInQuery] int boidIndex, in CTargetVector targetVector, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
+        public void Execute([EntityIndexInQuery] int boidIndex, in CRuleVector ruleVector, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
         {
-            float3 velocity = targetVector.value * deltaTime * speedMulRules;
+            float3 velocity = ruleVector.value * deltaTime * speedMulRules;
             float length = math.length(velocity);
             if(length < minSpeed)
             {
                 float3 position = transform.Position;
-                float3 objectiveVector = math.normalize(swarmObjective - position) * objectiveCenterRatio;
-                float3 centerVector = math.normalize(swarmCenter - position) * (1 - objectiveCenterRatio);
-                velocity = math.normalize(objectiveVector + centerVector) * (minSpeed - length) + velocity;
+                float3 objectiveVector = math.normalizesafe(swarmObjective - position) * objectiveCenterRatio;
+                float3 centerVector = math.normalizesafe(swarmCenter - position) * (1 - objectiveCenterRatio);
+                velocity = math.normalizesafe(objectiveVector + centerVector) * (minSpeed - length) + velocity;
             }
 
             //if (boidIndex == 500)
@@ -51,25 +51,19 @@ namespace Boids
             length = math.length(velocity);
             speed.value = math.clamp(length, 0, maxSpeed);
 
-            if (length > 0.000000001f) 
-            {
-                float3 normedVelocity = math.normalize(velocity);
+            float3 normedVelocity = math.normalizesafe(velocity);
 
-                var random = randoms[threadId];
-                float3 randomVector = random.NextFloat3(-maxRadiansRandom, maxRadiansRandom);
-                float3 adjustedVelocity = math.mul(quaternion.EulerZXY(randomVector), normedVelocity);
-                randoms[threadId] = random;
+            var random = randoms[threadId];
+            float3 randomVector = random.NextFloat3(-maxRadiansRandom, maxRadiansRandom);
+            float3 adjustedVelocity = math.mul(quaternion.EulerZXY(randomVector), normedVelocity);
+            randoms[threadId] = random;
 
-                quaternion targetRotation = quaternion.LookRotation(adjustedVelocity, new float3(0f, 1f, 0f));
-                quaternion smoothRotation;
-                MathExtensions.RotateTowards(in transform.Rotation, in targetRotation, out smoothRotation, angularSpeed.value * deltaTime);
-                transform.Rotation = smoothRotation;
+            quaternion targetRotation = quaternion.LookRotation(adjustedVelocity, new float3(0f, 1f, 0f));
+            quaternion smoothRotation;
+            MathExtensions.RotateTowards(in transform.Rotation, in targetRotation, out smoothRotation, angularSpeed.value * deltaTime);
+            transform.Rotation = smoothRotation;
 
-                transform = transform.Translate(math.mul(smoothRotation, new float3(0f,0f,1f)) * length);
-
-
-                
-            }
+            transform = transform.Translate(math.mul(smoothRotation, new float3(0f, 0f, 1f)) * length);
         }
     }
 }

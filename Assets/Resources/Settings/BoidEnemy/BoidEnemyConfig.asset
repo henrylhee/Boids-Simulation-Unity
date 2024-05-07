@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: BoidEnemyConfig
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
-    <speed>k__BackingField: 2
-    <angularSpeed>k__BackingField: 40
+    Config:
+      <speed>k__BackingField: 0.2
+      <angularSpeed>k__BackingField: 20

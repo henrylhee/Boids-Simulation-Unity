@@ -1,10 +1,7 @@
-using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Transforms;
-using UnityEngine.UIElements;
 
 namespace Boids
 {
@@ -13,9 +10,7 @@ namespace Boids
     {
         //[ReadOnly] public float deltaTime;
         [ReadOnly] public BehaviourData behaviourData;
-        [ReadOnly] public NativeArray<CPosition> positions;
-        [ReadOnly] public NativeArray<CRotation> rotations;
-        [ReadOnly] public NativeArray<CSpeed> speeds;
+        [ReadOnly] public NativeArray<RuleData> ruleData;
 
         [ReadOnly] public NativeArray<int3> pivots;
         [ReadOnly] public NativeArray<int> hashTable;
@@ -28,9 +23,9 @@ namespace Boids
 
 
         [BurstCompile]
-        public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, ref CTargetVector targetVector)
+        public void Execute([EntityIndexInQuery] int boidIndex, ref CRuleVector ruleVector)
         {
-            float3 position = transform.Position;
+            float3 position = ruleData[boidIndex].position;
             int cellIndex = cellIndices[boidIndex];
             float3 convertedPosition = (position - boundsMin) * conversionFactor;
             int3 cell = new int3((int)convertedPosition.x, (int)convertedPosition.y, (int)convertedPosition.z);
@@ -53,15 +48,13 @@ namespace Boids
             for (int i = pivot.y; i < pivot.z; i++)
             {
                 int boidIndexToCheck = hashTable[i];
-                float3 positionToCheck = positions[boidIndexToCheck].value;
-                float3 distVector = positionToCheck - position;
 
-                if (distVector.x == 0 && distVector.y == 0 && distVector.z == 0)
+                if (boidIndexToCheck == boidIndex)
                 {
                     continue;
                 }
                 
-                ProcessBoid(distVector, rotations[boidIndexToCheck].value, speeds[boidIndexToCheck].value);
+                ProcessBoid(ruleData[boidIndexToCheck]);
             }
 
             // get the cells surrounding the cell of the currently processed boid and iterate over all boids inside
@@ -84,12 +77,8 @@ namespace Boids
 
                         for (int i = pivotToCheck.y; i < pivotToCheck.z; i++)
                         {
-
                             int boidIndexToCheck = hashTable[i];
-                            float3 positionToCheck = positions[boidIndexToCheck].value;
-                            float3 distVector = positionToCheck - position;
-
-                            ProcessBoid(distVector, rotations[boidIndexToCheck].value, speeds[boidIndexToCheck].value);
+                            ProcessBoid(ruleData[boidIndexToCheck]);
                         }
                     }
                 }
@@ -101,18 +90,18 @@ namespace Boids
                 allignmentVector = (allignmentVector / allignCohesCounter) * allignCohesMul * behaviourData.AllignmentStrength;
                 repulsionVector = -1 * repulsionVector * repulsionMul * behaviourData.RepulsionStrength;
 
-                targetVector.value = cohesionVector + allignmentVector + repulsionVector;
+                ruleVector.value = cohesionVector + allignmentVector + repulsionVector;
             }
             else if(allignCohesCounter > 0)
             {
                 cohesionVector = (cohesionVector / allignCohesCounter) * allignCohesMul * behaviourData.CohesionStrength;
                 allignmentVector = (allignmentVector / allignCohesCounter) * allignCohesMul * behaviourData.AllignmentStrength;
 
-                targetVector.value = cohesionVector + allignmentVector;
+                ruleVector.value = cohesionVector + allignmentVector;
             }
             else
             {
-                targetVector.value = new float3(0f,0f,0f);
+                ruleVector.value = new float3(0f,0f,0f);
             }
 
             //if (boidIndex == 500)
@@ -128,13 +117,14 @@ namespace Boids
             //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
             //}
 
-            void ProcessBoid(float3 distVector, quaternion rotation, float speed)
+            void ProcessBoid(RuleData boidToCheck)
             {
+                float3 distVector = boidToCheck.position - position;
                 float distVectorLength = math.length(distVector);
 
                 if (distVectorLength > cohesionDistance) { return; }
                 cohesionVector += distVector;
-                allignmentVector += math.mul(rotation, new float3(0f,0f,1f)) * speed;
+                allignmentVector += math.mul(boidToCheck.rotation, new float3(0f,0f,1f)) * boidToCheck.speed;
                 allignCohesCounter++;
 
                 if (distVectorLength > repulsionDistance) { return; }

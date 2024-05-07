@@ -10,18 +10,15 @@ namespace Boids
     public struct SpawnDataBuilder
     {
         [BurstCompile]
-        public void GenerateCubeSpawnData(in SpawnData settings, out NativeArray<CPosition> positions, out NativeArray<CRotation> rotations, Allocator allocator)
+        public void GenerateCubeSpawnData(in SpawnData settings, out NativeArray<RuleData> ruleData, Allocator allocator)
         {
-            int boidCount = settings.boidCount;
-            float3 center = settings.center;
-            float spawnDistance = settings.spawnDistance;
-
-            positions = GenerateCubePositions(boidCount, center, spawnDistance, allocator);
-            rotations = GenerateCubeRotations(boidCount, allocator);
+            ruleData = new NativeArray<RuleData>(settings.boidCount, allocator);
+            GenerateCubePositions(settings.boidCount, settings.center, settings.spawnDistance, ref ruleData, allocator);
+            GenerateCubeRotations(settings.boidCount, ref ruleData, allocator);
         }
 
         [BurstCompile]
-        public NativeArray<CPosition> GenerateCubePositions(int boidCount, in float3 center, float spawnDistance, Allocator allocator)
+        public NativeArray<CPosition> GenerateCubePositions(int boidCount, in float3 center, float spawnDistance, ref NativeArray<RuleData> ruleData, Allocator allocator)
         {
             NativeArray<CPosition> positions = new NativeArray<CPosition>(boidCount, allocator);
             int edgeCount = 2;
@@ -128,7 +125,7 @@ namespace Boids
         }
 
         [BurstCompile]
-        public NativeArray<CRotation> GenerateCubeRotations(int boidCount, Allocator allocator)
+        public NativeArray<CRotation> GenerateCubeRotations(int boidCount, ref NativeArray<RuleData> ruleData, Allocator allocator)
         {
             NativeArray<CRotation> rotationsResult = new NativeArray<CRotation>(boidCount, allocator);
             quaternion randomQuaternion = Random.rotation;

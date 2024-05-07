@@ -15,7 +15,7 @@ namespace Boids
 
                 AddComponent(entity, new CBoidEnemyConfig
                 {
-                    Config = authoring.configSO.Value,
+                    Config = authoring.configSO.Value.Config,
                 });
             }
         }

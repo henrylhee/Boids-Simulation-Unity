@@ -6,6 +6,6 @@ namespace Boids
     public class BoidEnemyConfigSO : ScriptableObject
     {
         [field: SerializeField]
-        public BoidEnemyConfig Value { get; private set; }
+        public CBoidEnemyConfig Value { get; private set; }
     }
 }
