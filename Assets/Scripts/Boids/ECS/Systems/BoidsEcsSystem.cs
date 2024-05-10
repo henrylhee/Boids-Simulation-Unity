@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -24,8 +26,8 @@ namespace Boids
 
         BoidEnemyConfig enemyConfig;
 
-        NativeArray<Entity> boids;
-        NativeArray<Entity> enemyTargets;
+        NativeArray<int> enemyTargetIndices;
+        NativeArray<float3> enemyTargetPositions;
 
         RuleJobDataBuilder ruleJobDataBuilder;
         NativeArray<RuleData> ruleData;
@@ -37,11 +39,6 @@ namespace Boids
 
         ComponentTypeHandle<LocalTransform> transformHandle;
         ComponentTypeHandle<CSpeed> speedHandle;
-
-        JobHandle rulesDataBuilderHandle;
-        JobHandle initializeBoidsHandle;
-        JobHandle applyRulesHandle;
-        JobHandle moveBoidsHandle;
 
 
         [BurstCompile]
@@ -64,24 +61,24 @@ namespace Boids
 
             Initialize(ref state);
             SpawnBoids(ref state);
-            //InitializeEnemies(ref state);
+            InitializeEnemies(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency.Complete();
-
             transformHandle.Update(ref state);
             speedHandle.Update(ref state);
-            rulesDataBuilderHandle = ruleJobDataBuilder.Gather(ref state, transformHandle, speedHandle, ref ruleData, state.Dependency);
-            rulesDataBuilderHandle.Complete();
+            ruleJobDataBuilder.Gather(ref state, transformHandle, speedHandle, ref ruleData, state.Dependency)
+            .Complete();
 
-            NativeArray<int3> pivots;
-            hashGridBuilder.Build(in ruleData, behaviourData, out pivots, ref cellIndices, ref hashTable);
-
+            //UnityEngine.Profiling.Profiler.BeginSample("hashgridbuilder");
+            hashGridBuilder.SetUp(in behaviourData, in ruleData);
+            NativeArray<int3> pivots = new NativeArray<int3>(hashGridBuilder.cellCountXYZ, Allocator.TempJob);
+            hashGridBuilder.Build(in ruleData, ref pivots, ref cellIndices, ref hashTable);
+            //UnityEngine.Profiling.Profiler.EndSample();
             //UpdateBoids(in pivots, ref state);
-            applyRulesHandle = new ApplyRulesJob
+            new ApplyRulesJob
             {
                 behaviourData = this.behaviourData,
 
@@ -95,10 +92,16 @@ namespace Boids
                 pivots = pivots,
                 hashTable = this.hashTable,
                 cellIndices = this.cellIndices
-            }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
+            }.ScheduleParallel(boidsQuery, state.Dependency)
+            .Complete();
+            pivots.Dispose();
 
             float3 swarmObjective = new float3(0, 0, 0);
-            moveBoidsHandle = new MoveBoidsJob
+            for (int i = 0; i < randoms.Length; i++)
+            {
+                randoms[i] = new Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+            }
+            new MoveBoidsJob
             {
                 deltaTime = SystemAPI.Time.DeltaTime,
                 maxSpeed = movementData.maxSpeed,
@@ -108,21 +111,12 @@ namespace Boids
                 objectiveCenterRatio = behaviourData.objectiveCenterRatio,
                 speedMulRules = movementData.speedMulRules,
                 maxRadiansRandom = (behaviourData.DirectionRandomness / 360f) * math.PI * 2f,
-                randoms = this.randoms
+                randoms = this.randoms,
             }
-            .ScheduleParallel(boidsQuery, applyRulesHandle);
+            .ScheduleParallel(boidsQuery, state.Dependency)
+            .Complete();
 
-            moveBoidsHandle.Complete();
-            pivots.Dispose();
-        }
-
-        public void OnDestroy(ref SystemState state)
-        {
-            cellIndices.Dispose();
-            hashTable.Dispose();
-            ruleData.Dispose();
-            randoms.Dispose();
-            enemyTargets.Dispose();
+            UpdateEnemies(ref state);
         }
 
         [BurstCompile]
@@ -132,17 +126,13 @@ namespace Boids
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             ruleData = new NativeArray<RuleData>(spawnData.boidCount, Allocator.Persistent);
 
-            boids = new NativeArray<Entity>(spawnData.boidCount, Allocator.Persistent);
-            //enemyTargets = new NativeArray<Entity>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent);
+            enemyTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            SetRandomEnemyTargets();
+            enemyTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             randoms = new NativeArray<Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
-            {
-                randoms[i] = new Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
-            }
 
             spawnDataBuilder = new SpawnDataBuilder();
-            spawnDataBuilder.GenerateCubeSpawnData(in spawnData, out ruleData, Allocator.Persistent);
 
             hashGridBuilder = new SpatialHashGridBuilder();
 
@@ -154,37 +144,52 @@ namespace Boids
         [BurstCompile]
         private void SpawnBoids(ref SystemState state)
         {
-            state.EntityManager.Instantiate(boidPrefab, boids);
+            for(int i = 0; i < spawnData.boidCount; i++)
+            {
+                state.EntityManager.Instantiate(boidPrefab);
+            }
+            NativeArray<float3> positions = new NativeArray<float3>(spawnData.boidCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            NativeArray<quaternion> rotations = new NativeArray<quaternion>(spawnData.boidCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
-            initializeBoidsHandle = new InitializeBoidsJob()
+            spawnDataBuilder.GenerateCubeSpawnData(in spawnData, ref positions, ref rotations);
+
+            new InitializeBoidsJob()
             {
                 startSpeed = movementData.startSpeed,
                 startAngularSpeed = (movementData.startAngularSpeed/360f) * 2f * math.PI,
-                RuleData = this.ruleData
-            }.ScheduleParallel(boidsQuery, state.Dependency);
+                positions = positions,
+                rotations = rotations
+            }.ScheduleParallel(boidsQuery, state.Dependency)
+            .Complete();
 
-            initializeBoidsHandle.Complete();
+            positions.Dispose();
+            rotations.Dispose();
         }
 
         [BurstCompile]
         private void InitializeEnemies(ref SystemState state)
         {
-            for (int i = 0; i < enemyTargets.Length; i++)
-            {
-                enemyTargets[i] = boids[UnityEngine.Random.Range(0, boids.Length)];
-            }
-
             new InitializeEnemiesJob
             {
                 speed = enemyConfig.speed,
-                angularSpeed = enemyConfig.angularSpeed,
-            }.ScheduleParallel(boidsEnemyQuery, new JobHandle());
+                angularSpeed = enemyConfig.angularSpeed
+            }.ScheduleParallel(boidsEnemyQuery, state.Dependency)
+            .Complete();
+        }
+
+        [BurstCompile]
+        private void SetRandomEnemyTargets()
+        {
+            for (int i = 0; i < enemyTargetIndices.Length; i++)
+            {
+                enemyTargetIndices[i] = UnityEngine.Random.Range(0, spawnData.boidCount);
+            }
         }
 
         [BurstCompile]
         private void UpdateBoids(in NativeArray<int3> pivots, ref SystemState state)
         {
-            applyRulesHandle = new ApplyRulesJob
+            new ApplyRulesJob
             {
                 behaviourData = this.behaviourData,
 
@@ -198,10 +203,11 @@ namespace Boids
                 pivots = pivots,
                 hashTable = this.hashTable,
                 cellIndices = this.cellIndices
-            }.ScheduleParallel(boidsQuery, rulesDataBuilderHandle);
+            }.ScheduleParallel(boidsQuery, state.Dependency)
+            .Complete();
 
             float3 swarmObjective = new float3(0, 0, 0);
-            moveBoidsHandle = new MoveBoidsJob
+            new MoveBoidsJob
             {
                 deltaTime = SystemAPI.Time.DeltaTime,
                 maxSpeed = movementData.maxSpeed,
@@ -211,32 +217,28 @@ namespace Boids
                 objectiveCenterRatio = behaviourData.objectiveCenterRatio,
                 speedMulRules = movementData.speedMulRules,
                 maxRadiansRandom = (behaviourData.DirectionRandomness / 360f) * math.PI * 2f,
-                randoms = this.randoms
+                randoms = this.randoms,
+                enemyTargetPositions = this.enemyTargetPositions                
             }
-            .ScheduleParallel(boidsQuery, applyRulesHandle);
-
-            moveBoidsHandle.Complete();
+            .ScheduleParallel(boidsQuery, state.Dependency)
+            .Complete();
         }
 
         private void UpdateEnemies(ref SystemState state)
         {
-            NativeArray<float3> targetPositions = new NativeArray<float3>(enemyTargets.Length, Allocator.TempJob);
-
-            for (int i = 0; i < enemyTargets.Length; i++)
+            for (int i = 0; i < enemyTargetIndices.Length; i++)
             {
-                targetPositions[i] = state.EntityManager.GetComponentData<LocalTransform>(enemyTargets[i]).Position;
+                enemyTargetPositions[i] = ruleData[enemyTargetIndices[i]].position;
             }
 
-            JobHandle dependency = new MoveEnemiesJob
+            new MoveEnemiesJob
             {
-                targetPositions = targetPositions,
+                targetPositions = enemyTargetPositions,
                 deltaTime = SystemAPI.Time.DeltaTime,
                 speed = enemyConfig.speed,
                 angularSpeed = enemyConfig.angularSpeed
-            }.Schedule(state.Dependency);
-
-            dependency.Complete();
-            targetPositions.Dispose();
+            }.Schedule(boidsEnemyQuery, state.Dependency)
+            .Complete();
         }
 
         [BurstCompile]
@@ -252,21 +254,35 @@ namespace Boids
         }
 
         public void OnStopRunning(ref SystemState state) { }
+
+
+        public void OnDestroy(ref SystemState state)
+        {
+            cellIndices.Dispose();
+            hashTable.Dispose();
+            ruleData.Dispose();
+            randoms.Dispose();
+            enemyTargetIndices.Dispose();
+            enemyTargetPositions.Dispose();
+        }
     }
+
 
     [BurstCompile]
     partial struct InitializeBoidsJob : IJobEntity
     {
         [ReadOnly] public float startSpeed;
         [ReadOnly] public float startAngularSpeed;
-        [ReadOnly] public NativeArray<RuleData> RuleData;
+        [ReadOnly] public NativeArray<float3> positions;
+        [ReadOnly] public NativeArray<quaternion> rotations;
+
 
         [BurstCompile]
         public void Execute([EntityIndexInQuery] int boidIndex, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
         {
             speed.value = startSpeed;
             angularSpeed.value = startAngularSpeed;
-            transform = LocalTransform.FromPositionRotationScale(RuleData[boidIndex].position, RuleData[boidIndex].rotation, 0.01f);
+            transform = LocalTransform.FromPositionRotationScale(positions[boidIndex], rotations[boidIndex], transform.Scale);
         }
     }
 

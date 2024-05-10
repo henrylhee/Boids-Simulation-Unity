@@ -7,7 +7,7 @@ public class CAngularSpeedAuthoring : MonoBehaviour
     {
         public override void Bake(CAngularSpeedAuthoring authoring)
         {
-            Entity entity = GetEntity(TransformUsageFlags.Renderable);
+            Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new CAngularSpeed());
         }
     }

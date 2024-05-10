@@ -10,17 +10,15 @@ namespace Boids
     public struct SpawnDataBuilder
     {
         [BurstCompile]
-        public void GenerateCubeSpawnData(in SpawnData settings, out NativeArray<RuleData> ruleData, Allocator allocator)
+        public void GenerateCubeSpawnData(in SpawnData settings, ref NativeArray<float3> positions, ref NativeArray<quaternion> rotations)
         {
-            ruleData = new NativeArray<RuleData>(settings.boidCount, allocator);
-            GenerateCubePositions(settings.boidCount, settings.center, settings.spawnDistance, ref ruleData, allocator);
-            GenerateCubeRotations(settings.boidCount, ref ruleData, allocator);
+            GenerateCubePositions(settings.boidCount, settings.center, settings.spawnDistance, ref positions);
+            GenerateCubeRotations(settings.boidCount, ref rotations);
         }
 
         [BurstCompile]
-        public NativeArray<CPosition> GenerateCubePositions(int boidCount, in float3 center, float spawnDistance, ref NativeArray<RuleData> ruleData, Allocator allocator)
+        public void GenerateCubePositions(int boidCount, in float3 center, float spawnDistance, ref NativeArray<float3> positions)
         {
-            NativeArray<CPosition> positions = new NativeArray<CPosition>(boidCount, allocator);
             int edgeCount = 2;
             float offset = spawnDistance;
             int index = 0;
@@ -40,21 +38,21 @@ namespace Boids
                         if (index < boidCount-1)
                         {
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
-                            positions[index] = new CPosition { value = center + randomVector + new float3(xMax * offset, y * offset, z * offset) };
+                            positions[index] = center + randomVector + new float3(xMax * offset, y * offset, z * offset);
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
-                            positions[index+1] = new CPosition { value = center + randomVector + new float3(-xMax * offset, y * offset, z * offset) };
+                            positions[index + 1] = center + randomVector + new float3(-xMax * offset, y * offset, z * offset);
                             index += 2;
                         }
                         else if (index < boidCount)
                         {
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
-                            positions[index] = new CPosition { value = center + randomVector + new float3(xMax * offset, y * offset, z * offset) };
+                            positions[index] = center + randomVector + new float3(xMax * offset, y * offset, z * offset);
                             index++;
-                            return positions;
+                            return;
                         }
                         else
                         {
-                            return positions;
+                            return;
                         }
                     }
                 }
@@ -68,23 +66,23 @@ namespace Boids
                         {
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
-                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, yMax * offset, z * offset) };
+                            positions[index] = center + randomVector + new float3(x * offset, yMax * offset, z * offset);
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
-                            positions[index+1] = new CPosition { value = center + randomVector + new float3(x * offset, -yMax * offset, z * offset) };
+                            positions[index+1] = center + randomVector + new float3(x * offset, -yMax * offset, z * offset);
                             index += 2;
                         }
                         else if(index < boidCount)
                         {
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
-                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, yMax * offset, z * offset) };
+                            positions[index] = center + randomVector + new float3(x * offset, yMax * offset, z * offset);
                             index++;
-                            return positions;
+                            return;
                         }
                         else
                         {
-                            return positions;
+                            return;
                         }
                     }
                 }
@@ -98,43 +96,41 @@ namespace Boids
                         {
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
-                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, y * offset, zMax * offset) };
+                            positions[index] = center + randomVector + new float3(x * offset, y * offset, zMax * offset);
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
-                            positions[index+1] = new CPosition { value = center + randomVector + new float3(x * offset, y * offset, -zMax * offset) };
+                            positions[index+1] = center + randomVector + new float3(x * offset, y * offset, -zMax * offset);
                             index += 2;
                         }
                         else if (index < boidCount)
                         {
                             randomVector = new float3(Random.Range(-randomness, randomness), Random.Range(-randomness, randomness), Random.Range(-randomness, randomness));
 
-                            positions[index] = new CPosition { value = center + randomVector + new float3(x * offset, y * offset, zMax * offset) };
+                            positions[index] = center + randomVector + new float3(x * offset, y * offset, zMax * offset);
                             index++;
-                            return positions;
+                            return;
                         }
                         else
                         { 
-                            return positions;
+                            return;
                         }
                     }
                 }
 
                 edgeCount += 2;
             }
-            return positions;
+            return;
         }
 
         [BurstCompile]
-        public NativeArray<CRotation> GenerateCubeRotations(int boidCount, ref NativeArray<RuleData> ruleData, Allocator allocator)
+        public void GenerateCubeRotations(int boidCount, ref NativeArray<quaternion> rotations)
         {
-            NativeArray<CRotation> rotationsResult = new NativeArray<CRotation>(boidCount, allocator);
-            quaternion randomQuaternion = Random.rotation;
+            quaternion randomRotation = Random.rotation;
 
-            for(int i = 0; i < rotationsResult.Length; i++)
+            for (int i = 0; i < boidCount; i++)
             {
-                rotationsResult[i] = new CRotation { value = randomQuaternion };
+                rotations[i] = randomRotation;
             }
-            return rotationsResult;
         }
     }
 }

@@ -2,6 +2,8 @@ using Unity.Mathematics;
 using Unity.Collections;
 using Unity.Burst;
 using UnityEngine.UIElements;
+using System.Diagnostics;
+using Unity.Entities;
 
 [BurstCompile]
 public struct SpatialHashGridBuilder
@@ -11,20 +13,22 @@ public struct SpatialHashGridBuilder
     public float3 boundsMin { get; private set; }
     public int3 cellCountAxis { get; private set; }
     public int cellCountXY { get; private set; }
-    int cellCountXYZ;
+    public int cellCountXYZ{ get; private set; }
 
 
     [BurstCompile]
-    public void Build(in NativeArray<RuleData> ruleData, in BehaviourData settings, out NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
+    public void Build(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
+    {
+        BuildContainers(in ruleData, ref pivots, ref cellIndices, ref hashTable);
+    }
+
+    [BurstCompile]
+    public void SetUp(in BehaviourData settings, in NativeArray<RuleData> ruleData)
     {
         conversionFactor = 1f / settings.CohesionDistance;
 
         UpdateBounds(in ruleData);
         SetCellCount();
-
-        pivots = new NativeArray<int3>(cellCountXYZ, Allocator.TempJob);
-
-        BuildContainers(in ruleData, ref pivots, ref cellIndices, ref hashTable);
     }
 
     [BurstCompile]
@@ -40,12 +44,11 @@ public struct SpatialHashGridBuilder
             //    UnityEngine.Debug.Log("#####-----------:");
             //    UnityEngine.Debug.Log("boundsMin: " + boundsMin);
             //    UnityEngine.Debug.Log("boundsMax: " + boundsMax);
-            //    UnityEngine.Debug.Log("position: " + positions[boidIndex].value);
-            //    UnityEngine.Debug.Log("position: " + positions[boidIndex+1].value);
+            //    UnityEngine.Debug.Log("position: " + ruleData[boidIndex].position);
+            //    UnityEngine.Debug.Log("position for index + 1: " + ruleData[boidIndex + 1].position);
             //    UnityEngine.Debug.Log("convertedGridLength: " + convertedGridLength);
             //    UnityEngine.Debug.Log("cellCountAxis: " + cellCountAxis);
-            //    UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ +
-            //                          " in boidIndex: " + boidIndex + " with position: " + positions[boidIndex].value);
+            //    UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ + " in boidIndex: " + boidIndex);
             //    return;
             //}
             cellIndices[boidIndex] = cellIndex;
@@ -64,7 +67,7 @@ public struct SpatialHashGridBuilder
             }
         }
 
-        NativeArray<int> hashBucketCount = new NativeArray<int>(pivots.Length,Allocator.Temp);
+        NativeArray<int> hashBucketCount = new NativeArray<int>(pivots.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);
         for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
         {
             int cellIndex = cellIndices[boidIndex];

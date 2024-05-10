@@ -20,6 +20,7 @@ namespace Boids
         [ReadOnly] public float objectiveCenterRatio;
         [ReadOnly] public float speedMulRules;
         [NativeDisableContainerSafetyRestriction] public NativeArray<Random> randoms;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<float3> enemyTargetPositions;
         [NativeSetThreadIndex] [ReadOnly] int threadId;
 
         [BurstCompile]
@@ -64,6 +65,10 @@ namespace Boids
             transform.Rotation = smoothRotation;
 
             transform = transform.Translate(math.mul(smoothRotation, new float3(0f, 0f, 1f)) * length);
+            if(boidIndex < enemyTargetPositions.Length)
+            {
+                enemyTargetPositions[boidIndex] = transform.Position;
+            }
         }
     }
 }

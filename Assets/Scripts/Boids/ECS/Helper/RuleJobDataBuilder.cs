@@ -64,9 +64,9 @@ namespace Boids
                 var speedOffset = posRotSize;
 
                 var posRots = chunk.GetNativeArray(ref this.TransformHandle).Slice().SliceWithStride<PosRot>(0);
-                var speeds = chunk.GetNativeArray(ref this.SpeedHandle).Slice().SliceWithStride<float>(0);
+                var speeds = chunk.GetNativeArray(ref this.SpeedHandle).Slice();
 
-                UnsafeUtility.MemCpyStride(ruleDataDst, ruleDataSize, posRots.GetUnsafeReadOnlyPtr(), transformSize, posRotSize, speeds.Length);
+                UnsafeUtility.MemCpyStride(ruleDataDst, ruleDataSize, posRots.GetUnsafeReadOnlyPtr(), posRots.Stride, posRotSize, speeds.Length);
                 UnsafeUtility.MemCpyStride(ruleDataDst + speedOffset, ruleDataSize, speeds.GetUnsafeReadOnlyPtr(), speeds.Stride, speedSize, speeds.Length);
             }
         }

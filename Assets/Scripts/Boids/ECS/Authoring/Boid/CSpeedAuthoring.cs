@@ -7,7 +7,7 @@ public class CSpeedAuthoring : MonoBehaviour
     {
         public override void Bake(CSpeedAuthoring authoring)
         {
-            Entity entity = GetEntity(TransformUsageFlags.Renderable);
+            Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new CSpeed());
         }
     }
