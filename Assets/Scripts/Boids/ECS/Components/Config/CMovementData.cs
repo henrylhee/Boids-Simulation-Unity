@@ -19,12 +19,16 @@ public struct MovementData
 
     public float maxSpeed;
 
+    public float maxSpeedFleeing;
+
     public float startAngularSpeed;
 
     public float speedMulRules;
 
-    [Tooltip("Time in which the boid accelerates from 0 to max speed. Deceleration works in the same way.")]
-    public float Acceleration;
+    [Tooltip("1/seconds in which the boid accelerates from 0 to 1. Deceleration works in the same way.")]
+    public float acceleration;
 
-    public float AngularAcceleration;
+    public float accelerationFleeing;
+
+    public float angularAcceleration;
 }

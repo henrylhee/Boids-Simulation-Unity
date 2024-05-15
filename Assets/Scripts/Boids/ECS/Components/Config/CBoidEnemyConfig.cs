@@ -11,8 +11,8 @@ public struct CBoidEnemyConfig : IComponentData
 [Serializable]
 public struct BoidEnemyConfig
 {
-    [field:SerializeField]
+    [field: SerializeField]
     public float speed { get; private set; }
-    [field:SerializeField]
-    public float angularSpeed {  get; private set; }
+    [field: SerializeField]
+    public float angularSpeed { get; private set; }
 }

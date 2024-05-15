@@ -56,7 +56,7 @@ public class PlayerInput : MonoBehaviour
     {
         if(isMoving)
         {
-            Debug.Log("Cam moved: " + moveVector);
+            //Debug.Log("Cam moved: " + moveVector);
 
             playerController.UpdateMoveVector(moveVector);
         }
@@ -77,21 +77,21 @@ public class PlayerInput : MonoBehaviour
 
     private void OnMouseRightPressed(InputAction.CallbackContext context)
     {
-        Debug.Log("Mouse pressed");
+        //Debug.Log("Mouse pressed");
 
         playerController.MouseRightPressed();
     }
 
     private void OnMouseRightReleased(InputAction.CallbackContext context)
     {
-        Debug.Log("Mouse released");
+        //Debug.Log("Mouse released");
 
         playerController.MouseRightReleased();
     }
 
     private void OnMouseScroll(InputAction.CallbackContext context)
     {
-        Debug.Log("MouseScroll: " + context.ReadValue<Vector2>());
+        //Debug.Log("MouseScroll: " + context.ReadValue<Vector2>());
         playerController.MouseScroll(context.ReadValue<Vector2>().y/120f);
     }
 

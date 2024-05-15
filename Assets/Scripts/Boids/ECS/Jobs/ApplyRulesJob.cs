@@ -33,11 +33,10 @@ namespace Boids
 
             float3 repulsionVector = float3.zero;
             int repulsionCounter = 0;
-            float repulsionMul = 1f / behaviourData.RepulsionDistance;
+            float repulsionMul = behaviourData.CohesionDistance / behaviourData.RepulsionDistance;
 
             float3 allignmentVector = float3.zero;
             int allignCohesCounter = 0;
-            float allignCohesMul = 1f / behaviourData.CohesionDistance;
 
             float3 cohesionVector = float3.zero;
 
@@ -83,19 +82,20 @@ namespace Boids
                     }
                 }
             }
-            
+
+
             if (repulsionCounter > 0)
             {
-                cohesionVector = (cohesionVector / allignCohesCounter) * allignCohesMul * behaviourData.CohesionStrength;
-                allignmentVector = (allignmentVector / allignCohesCounter) * allignCohesMul * behaviourData.AllignmentStrength;
+                cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
+                allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
                 repulsionVector = -1 * repulsionVector * repulsionMul * behaviourData.RepulsionStrength;
 
                 ruleVector.value = cohesionVector + allignmentVector + repulsionVector;
             }
             else if(allignCohesCounter > 0)
             {
-                cohesionVector = (cohesionVector / allignCohesCounter) * allignCohesMul * behaviourData.CohesionStrength;
-                allignmentVector = (allignmentVector / allignCohesCounter) * allignCohesMul * behaviourData.AllignmentStrength;
+                cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.CohesionStrength;
+                allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.AllignmentStrength;
 
                 ruleVector.value = cohesionVector + allignmentVector;
             }

@@ -14,11 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
     value:
-      CohesionDistance: 0.06
-      CohesionStrength: 0.531
-      RepulsionDistance: 0.025
-      RepulsionStrength: 1
+      CohesionDistance: 0.08
+      CohesionStrength: 0.32
+      RepulsionDistance: 0.02
+      RepulsionStrength: 0.432
       AllignmentStrength: 1
+      fleeStrength: 0
       DirectionRandomness: 0.4
       MinDistance: 0.005
-      objectiveCenterRatio: 0.062
+      objectiveCenterRatio: 0.416

@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
     Config:
-      <speed>k__BackingField: 0.2
-      <angularSpeed>k__BackingField: 20
+      <speed>k__BackingField: 1
+      <angularSpeed>k__BackingField: 5
