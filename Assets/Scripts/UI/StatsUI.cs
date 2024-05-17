@@ -1,3 +1,4 @@
+using Boids;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,7 +10,9 @@ public class StatsUI : MonoBehaviour
     [SerializeField]
     private TMPro.TextMeshProUGUI cores;
     [SerializeField]
-    private TMPro.TextMeshProUGUI text;
+    private TMPro.TextMeshProUGUI boidCount;
+    [SerializeField]
+    private BoidConfigSO boidConfig;
 
     [SerializeField]
     private int updateFpsPerSecond = 5;
@@ -24,6 +27,8 @@ public class StatsUI : MonoBehaviour
         fpsCounter = GetComponent<FPSCounter>();
 
         cores.text = "Cores in use: " + SystemInfo.processorCount;
+
+        boidCount.text = "Boidcount: " + boidConfig.spawnConfigSO.Value.Value.boidCount;
     }
 
     private void Update()

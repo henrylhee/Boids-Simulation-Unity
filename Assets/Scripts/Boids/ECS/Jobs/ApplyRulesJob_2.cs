@@ -6,11 +6,10 @@ using Unity.Mathematics;
 namespace Boids
 {
     [BurstCompile]
-    partial struct ApplyRulesJob : IJobEntity
+    partial struct ApplyRulesJob_2 : IJobEntity
     {
         //[ReadOnly] public float deltaTime;
         [ReadOnly] public BehaviourData behaviourData;
-        [ReadOnly] public float speedTowardsObjective;
         [ReadOnly] public NativeArray<RuleData> ruleData;
 
         [ReadOnly] public NativeArray<int3> pivots;
@@ -19,9 +18,7 @@ namespace Boids
         [ReadOnly] public float conversionFactor;
         [ReadOnly] public int3 cellCountAxis;
         [ReadOnly] public int cellCountXY;
-
-        [ReadOnly] public float3 swarmCenter;
-        [ReadOnly] public float3 swarmObjective;
+        
         [ReadOnly] public float3 boundsMin;
 
 
@@ -36,14 +33,14 @@ namespace Boids
 
             float3 repulsionVector = float3.zero;
             int repulsionCounter = 0;
+            float repulsionMul = behaviourData.visionRange / behaviourData.repulsionDistance;
 
             float3 allignmentVector = float3.zero;
-            int allignCounter = 0;
+            int allignCohesCounter = 0;
 
             float3 cohesionVector = float3.zero;
-            float3 objectiveVector = float3.zero;
 
-            float visionRange = behaviourData.visionRange;
+            float cohesionDistance = behaviourData.visionRange;
             float repulsionDistance = behaviourData.repulsionDistance;
 
             // iterate over all boids in the cell of the currently processed boid
@@ -86,31 +83,38 @@ namespace Boids
                 }
             }
 
-            if(allignCounter > 0)
-            {
-                allignmentVector = (allignmentVector / allignCounter) * behaviourData.allignmentStrength;
-            }
+
             if (repulsionCounter > 0)
             {
-                repulsionVector = -1 * repulsionVector * behaviourData.repulsionStrength;
-            }
+                cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.cohesionStrength;
+                allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.allignmentStrength;
+                repulsionVector = -1 * repulsionVector * repulsionMul * behaviourData.repulsionStrength;
 
-            cohesionVector = (swarmCenter - position) * behaviourData.cohesionStrength;
-            cohesionVector = math.clamp(cohesionVector, 0, behaviourData.maxSpeedCohesion);
-            objectiveVector = math.normalizesafe(swarmObjective - position) * speedTowardsObjective;
-            ruleVector.value = allignmentVector + repulsionVector + cohesionVector + objectiveVector;
+                ruleVector.value = cohesionVector + allignmentVector + repulsionVector;
+            }
+            else if(allignCohesCounter > 0)
+            {
+                cohesionVector = (cohesionVector / allignCohesCounter) * behaviourData.cohesionStrength;
+                allignmentVector = (allignmentVector / allignCohesCounter) * behaviourData.allignmentStrength;
+
+                ruleVector.value = cohesionVector + allignmentVector;
+            }
+            else
+            {
+                ruleVector.value = new float3(0f,0f,0f);
+            }
 
             //if (boidIndex == 500)
             //{
-            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
             //}
             //if (boidIndex == 999)
             //{
-            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
             //}
             //if (boidIndex == 1)
             //{
-            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector));
             //}
 
             void ProcessBoid(RuleData boidToCheck)
@@ -118,13 +122,14 @@ namespace Boids
                 float3 distVector = boidToCheck.position - position;
                 float distVectorLength = math.length(distVector);
 
-                if (distVectorLength > visionRange) { return; }
+                if (distVectorLength > cohesionDistance) { return; }
+                cohesionVector += distVector;
                 allignmentVector += math.mul(boidToCheck.rotation, new float3(0f,0f,1f)) * boidToCheck.speed;
-                allignCounter++;
+                allignCohesCounter++;
 
-                if (distVectorLength > repulsionDistance) { return; }
-                repulsionVector += (repulsionDistance - distVectorLength) * math.normalizesafe(distVector);
+                repulsionVector += (repulsionDistance - distVectorLength) * math.normalize(distVector);
                 repulsionCounter++;
+                //if (distVectorLength > repulsionDistance) { return; }
             } 
         }
     }

@@ -13,13 +13,16 @@ MonoBehaviour:
   m_Name: BehaviourConfig
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
-    value:
-      CohesionDistance: 0.08
-      CohesionStrength: 0.32
-      RepulsionDistance: 0.02
-      RepulsionStrength: 0.432
-      AllignmentStrength: 1
-      fleeStrength: 0
-      DirectionRandomness: 0.4
-      MinDistance: 0.005
-      objectiveCenterRatio: 0.416
+    Value:
+      visionRange: 0.05
+      repulsionDistance: 0.03
+      cohesionStrength: 0.0216
+      repulsionStrength: 2
+      allignmentStrength: 0.432
+      objectiveStrength: 0.0126
+      enemyVisionRadius: 0
+      DirectionRandomness: 0
+      objectiveCenterRatio: 0
+      swarmTargetRadius: 0.5
+      maxSpeedCohesion: 0.1
+      maxSpeedObjective: 0.05

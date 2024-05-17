@@ -16,7 +16,7 @@ namespace Boids
         [ReadOnly] public float speed;
         [ReadOnly] public float angularSpeed;
 
-        [NativeDisableContainerSafetyRestriction] public NativeArray<float3> enemyPositions;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<LocalTransform> enemyTransforms;
 
         [BurstCompile]
         public void Execute([EntityIndexInQuery] int enemyIndex, ref LocalTransform transform)
@@ -28,7 +28,7 @@ namespace Boids
             transform.Rotation = smoothRotation;
 
             transform = transform.Translate(math.mul(smoothRotation, new float3(0f, 0f, 1f)) * speed * deltaTime);
-            enemyPositions[enemyIndex] = transform.Position;
+            enemyTransforms[enemyIndex] = transform;
         }
     }
 }

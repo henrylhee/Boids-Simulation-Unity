@@ -25,7 +25,7 @@ public struct SpatialHashGridBuilder
     [BurstCompile]
     public void SetUp(in BehaviourData settings, in NativeArray<RuleData> ruleData)
     {
-        conversionFactor = 1f / settings.CohesionDistance;
+        conversionFactor = 1f / settings.visionRange;
 
         UpdateBounds(in ruleData);
         SetCellCount();
@@ -37,7 +37,6 @@ public struct SpatialHashGridBuilder
         for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
         {
             int cellIndex = HashFunction(ruleData[boidIndex].position);
-
             //if (cellIndex >= cellCountXYZ || cellIndex < 0)
             //{
             //    float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;

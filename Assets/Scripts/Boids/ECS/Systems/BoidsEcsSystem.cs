@@ -24,15 +24,18 @@ namespace Boids
         SpawnData spawnData;
         BehaviourData behaviourData;
         MovementData movementData;
-
         BoidEnemyConfig enemyConfig;
+
+        int swarmTargetIndex;
+        NativeArray<float3> swarmTargetPositions;
 
         NativeArray<int> boidTargetIndices;
         NativeArray<float3> boidTargetPositions;
 
-        NativeArray<float3> enemyPositions;
+        NativeArray<LocalTransform> enemyTransforms;
         float boidVisionRadius;
         float enemyScale;
+        Timer enemyChaseTimer;
 
         NativeArray<RuleData> ruleData;
 
@@ -40,6 +43,7 @@ namespace Boids
 
         EntityQuery boidsQuery;
         EntityQuery boidsEnemyQuery;
+        EntityQuery swarmTargetsQuery;
 
 
         [BurstCompile]
@@ -48,19 +52,14 @@ namespace Boids
             state.RequireForUpdate<CBoidsConfig>();
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
             boidsEnemyQuery = SystemAPI.QueryBuilder().WithAspect<BoidEnemyAspect>().Build();
+            swarmTargetsQuery = SystemAPI.QueryBuilder().WithAll<CSwarmTarget>().WithAll<LocalToWorld>().Build();
         }
 
         [BurstCompile]
         public void OnStartRunning(ref SystemState state)
         {
-            boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
-            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
-            behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
-            movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
-
-            enemyConfig = SystemAPI.GetSingleton<CBoidEnemyConfig>().Config;
-
             Initialize(ref state);
+            InitializeBoids(ref state);
             SpawnBoids(ref state);
             InitializeEnemies(ref state);
         }
@@ -71,7 +70,8 @@ namespace Boids
             new GatherRuleDataJob
             {
                 RuleDataArray = ruleData,
-            }.ScheduleParallel(boidsQuery, state.Dependency)
+            }
+            .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
 
             hashGridBuilder.SetUp(in behaviourData, in ruleData);
@@ -85,19 +85,27 @@ namespace Boids
         [BurstCompile]
         private void Initialize(ref SystemState state)
         {
+            boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
+            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
+            behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
+            movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
+
+            enemyConfig = SystemAPI.GetSingleton<CBoidEnemyConfig>().Config;
+
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             ruleData = new NativeArray<RuleData>(spawnData.boidCount, Allocator.Persistent);
 
             boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            SetRandomEnemyTargets();
             boidTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             randoms = new NativeArray<Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             spawnDataBuilder = new SpawnDataBuilder();
-
             hashGridBuilder = new SpatialHashGridBuilder();
+
+            enemyChaseTimer = new Timer();
+            enemyChaseTimer.Initialize(enemyConfig.chaseTime);
         }
 
         [BurstCompile]
@@ -111,14 +119,14 @@ namespace Boids
             NativeArray<quaternion> rotations = new NativeArray<quaternion>(spawnData.boidCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
             spawnDataBuilder.GenerateCubeSpawnData(in spawnData, ref positions, ref rotations);
-
             new InitializeBoidsJob()
             {
                 startSpeed = movementData.startSpeed,
                 startAngularSpeed = (movementData.startAngularSpeed/360f) * 2f * math.PI,
                 positions = positions,
                 rotations = rotations
-            }.ScheduleParallel(boidsQuery, state.Dependency)
+            }
+            .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
 
             positions.Dispose();
@@ -128,16 +136,32 @@ namespace Boids
         [BurstCompile]
         private void InitializeEnemies(ref SystemState state)
         {
-            enemyPositions = new NativeArray<float3>(boidTargetIndices.Length, Allocator.Persistent);
+            enemyTransforms = new NativeArray<LocalTransform>(boidTargetIndices.Length, Allocator.Persistent);
             enemyScale = boidsEnemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp)[0].Scale;
+            SetRandomEnemyTargets();
 
             new InitializeEnemiesJob
             {
                 speed = enemyConfig.speed,
                 angularSpeed = enemyConfig.angularSpeed,
-                enemyPositions = this.enemyPositions
-            }.ScheduleParallel(boidsEnemyQuery, state.Dependency)
+                enemyTransforms = this.enemyTransforms
+            }
+            .ScheduleParallel(boidsEnemyQuery, state.Dependency)
             .Complete();
+        }
+
+        [BurstCompile]
+        private void InitializeBoids(ref SystemState state)
+        {
+            boidVisionRadius = behaviourData.enemyVisionRadius;
+
+            swarmTargetIndex = 0;
+            swarmTargetPositions = new NativeArray<float3>(swarmTargetsQuery.CalculateEntityCount(), Allocator.Persistent);
+            new InitializeSwarmTargetPositionsJob()
+            {
+                swarmTargetPositions = this.swarmTargetPositions,
+            }
+            .Schedule(swarmTargetsQuery);
         }
 
         [BurstCompile]
@@ -152,9 +176,13 @@ namespace Boids
         [BurstCompile]
         private void UpdateBoids(in NativeArray<int3> pivots, ref SystemState state)
         {
+            float3 swarmCenter = GetSwarmCenter();
+            float deltaTime = SystemAPI.Time.DeltaTime;
+
             new ApplyRulesJob
             {
                 behaviourData = this.behaviourData,
+                speedTowardsObjective = movementData.speedTowardsObjective * deltaTime,
 
                 ruleData = this.ruleData,
 
@@ -163,21 +191,23 @@ namespace Boids
                 cellCountAxis = hashGridBuilder.cellCountAxis,
                 cellCountXY = hashGridBuilder.cellCountXY,
 
+                swarmCenter = swarmCenter,
+                swarmObjective = swarmTargetPositions[swarmTargetIndex],
+
                 pivots = pivots,
                 hashTable = this.hashTable,
                 cellIndices = this.cellIndices,
-            }.ScheduleParallel(boidsQuery, state.Dependency)
+            }
+            .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
             pivots.Dispose();
 
-            float3 swarmObjective = new float3(0, 0, 0);
             for (int i = 0; i < randoms.Length; i++)
             {
                 randoms[i] = new Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
             }
 
-            float deltaTime = SystemAPI.Time.DeltaTime;
-            float speedFactor = deltaTime * movementData.speedMulRules;
+            float speedFactor = deltaTime * movementData.speedMul;
             new MoveBoidsJob
             {
                 speedFactor = speedFactor,
@@ -186,15 +216,13 @@ namespace Boids
                 minSpeed = movementData.minSpeed * speedFactor,
                 acceleration = movementData.acceleration * deltaTime,
                 accelerationFleeing = movementData.accelerationFleeing * deltaTime,
-                swarmCenter = GetSwarmCenter(),
-                swarmObjective = swarmObjective,
                 objectiveCenterRatio = behaviourData.objectiveCenterRatio,
                 maxRadiansRandom = (behaviourData.DirectionRandomness / 360f) * math.PI * 2f,
                 boidVisionRadius = this.boidVisionRadius,
                 boidEnemyMaxDistance = this.boidVisionRadius + enemyScale,
 
                 randoms = this.randoms,
-                enemyPositions = this.enemyPositions,
+                enemyTransforms = this.enemyTransforms,
 
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
@@ -203,19 +231,27 @@ namespace Boids
 
         private void UpdateEnemies(ref SystemState state)
         {
+            enemyChaseTimer.Update(SystemAPI.Time.DeltaTime);
+            if (enemyChaseTimer.isFinished)
+            {
+                enemyChaseTimer.Restart();
+                SetRandomEnemyTargets();
+            }
+
             for (int i = 0; i < boidTargetIndices.Length; i++)
             {
                 boidTargetPositions[i] = ruleData[boidTargetIndices[i]].position;
             }
-
+            
             new MoveEnemiesJob
             {
                 targetPositions = boidTargetPositions,
-                enemyPositions = this.enemyPositions,
+                enemyTransforms = this.enemyTransforms,
                 deltaTime = SystemAPI.Time.DeltaTime,
                 speed = enemyConfig.speed,
                 angularSpeed = enemyConfig.angularSpeed
-            }.Schedule(boidsEnemyQuery, state.Dependency)
+            }
+            .Schedule(boidsEnemyQuery, state.Dependency)
             .Complete();
         }
 
@@ -231,6 +267,29 @@ namespace Boids
             return result / ruleData.Length;
         }
 
+        private void UpdateSwarmTargetPosition(float3 swarmCenter)
+        {
+            float3 offsetPosition = new float3(behaviourData.swarmTargetRadius, 
+                                               behaviourData.swarmTargetRadius, 
+                                               behaviourData.swarmTargetRadius);
+            float3 minPosition = swarmCenter - offsetPosition;
+            float3 maxPosition = swarmCenter + offsetPosition;
+            float3 swarmTargetPosition = swarmTargetPositions[swarmTargetIndex];
+
+            if(swarmTargetPosition.x < minPosition.x || swarmTargetPosition.x > maxPosition.x) { return; }
+            if (swarmTargetPosition.y < minPosition.y || swarmTargetPosition.y > maxPosition.y) { return; }
+            if (swarmTargetPosition.z < minPosition.z || swarmTargetPosition.z > maxPosition.z) { return; }
+
+            if(swarmTargetIndex < swarmTargetsQuery.CalculateEntityCount() - 1)
+            {
+                swarmTargetIndex++;
+            }
+            else
+            {
+                swarmTargetIndex = 0;
+            }
+        }
+
         public void OnStopRunning(ref SystemState state) { }
 
 
@@ -242,10 +301,10 @@ namespace Boids
             randoms.Dispose();
             boidTargetIndices.Dispose();
             boidTargetPositions.Dispose();
-            enemyPositions.Dispose();
+            enemyTransforms.Dispose();
+            swarmTargetPositions.Dispose();
         }
     }
-
 
     [BurstCompile]
     partial struct InitializeBoidsJob : IJobEntity
@@ -270,14 +329,26 @@ namespace Boids
     {
         [ReadOnly] public float speed;
         [ReadOnly] public float angularSpeed;
-        [NativeDisableContainerSafetyRestriction] public NativeArray<float3> enemyPositions;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<LocalTransform> enemyTransforms;
 
         [BurstCompile]
         public void Execute([EntityIndexInQuery] int enemyIndex, ref CSpeed speed, ref CAngularSpeed angularSpeed, in LocalTransform transform)
         {
             speed.value = this.speed;
             angularSpeed.value = this.angularSpeed;
-            enemyPositions[enemyIndex] = transform.Position;
+            enemyTransforms[enemyIndex] = transform;
+        }
+    }
+
+    [BurstCompile]
+    partial struct InitializeSwarmTargetPositionsJob : IJobEntity
+    {
+        public NativeArray<float3> swarmTargetPositions;
+
+        [BurstCompile]
+        public void Execute(in CSwarmTarget swarmTarget, in LocalToWorld localToWorld)
+        {
+            swarmTargetPositions[swarmTarget.index] = localToWorld.Position;
         }
     }
 }

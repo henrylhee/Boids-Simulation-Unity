@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Boids
 {
     [BurstCompile]
-    partial struct MoveBoidsJob : IJobEntity
+    partial struct MoveBoidsJob_2 : IJobEntity
     {
         [ReadOnly] public float speedFactor;
         [ReadOnly] public float maxSpeed;
@@ -18,15 +18,16 @@ namespace Boids
         [ReadOnly] public float acceleration;
         [ReadOnly] public float accelerationFleeing;
         [ReadOnly] public float maxRadiansRandom;
+        [ReadOnly] public float3 swarmObjective;
+        [ReadOnly] public float3 swarmCenter;
         [ReadOnly] public float objectiveCenterRatio;
-        [ReadOnly] public float cohesionStrength;
         [NativeDisableContainerSafetyRestriction] public NativeArray<Unity.Mathematics.Random> randoms;
         [NativeDisableContainerSafetyRestriction] public NativeArray<float3> boidPositions;
         [NativeSetThreadIndex] [ReadOnly] int threadId;
 
         [ReadOnly] public float boidVisionRadius;
         [ReadOnly] public float boidEnemyMaxDistance;
-        [ReadOnly] public NativeArray<LocalTransform> enemyTransforms;
+        [ReadOnly] public NativeArray<float3> enemyPositions;
 
         [BurstCompile]
         public void Execute([EntityIndexInQuery] int boidIndex, in CRuleVector ruleVector, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
@@ -35,28 +36,21 @@ namespace Boids
             float ruleVectorLength = math.length(ruleVector.value);
 
             // For the boid enemy behaviour the boids are a single point and the enemies have a simple sphere in this example.
-            // Therefore its faster to check the distance between boids and enemies directly for each boid. Only performant for small number of enemies. 
+            // Therefore its faster to check the distance between boids and enemies directly. 
             float3 fleeVector = new float3();
             int interactionsCount = 0;
-            float fleeRuleRatio = 0;
-            for (int i = 0; i < enemyTransforms.Length; i++)
+            for (int i = 0; i < enemyPositions.Length; i++)
             {
-                float3 enemyPosition = enemyTransforms[i].Position;
-                float3 distVector = transform.Position - enemyPosition;
-                float distVectorLength = math.length(distVector);
-                if (distVectorLength > boidEnemyMaxDistance) { continue; }
-                fleeRuleRatio += boidVisionRadius - distVectorLength;
-                //float3 orhtoVector = enemyPosition + math.dot()
-                fleeVector += (math.normalizesafe(distVector) /*+ math.normalizesafe()*/) * fleeRuleRatio;
+                float3 distVector = transform.Position - enemyPositions[i];
+                if (math.length(distVector) > boidEnemyMaxDistance) { continue; }
+                fleeVector += distVector;
                 interactionsCount++;
             }
 
             if(interactionsCount > 0)
             {
-                fleeRuleRatio = fleeRuleRatio / (interactionsCount + boidVisionRadius);
-                fleeVector = math.normalizesafe(fleeVector) * fleeRuleRatio;
-                normedRuleVector = math.normalizesafe(fleeVector + normedRuleVector * (1 - fleeRuleRatio));
-                ruleVectorLength = maxSpeedFleeing * fleeRuleRatio + ruleVectorLength * (1 - fleeRuleRatio);
+                normedRuleVector = math.normalizesafe(fleeVector);
+                ruleVectorLength = maxSpeedFleeing;
 
                 if (speed.value < ruleVectorLength)
                 {
@@ -70,6 +64,14 @@ namespace Boids
             }
             else
             {
+                if (ruleVectorLength < minSpeed)
+                {
+                    //float3 objectiveVector = math.normalizesafe(swarmObjective - position) * objectiveCenterRatio;
+                    //float3 centerVector = math.normalizesafe(swarmCenter - position) * (1 - objectiveCenterRatio);
+                    normedRuleVector = math.normalizesafe(swarmCenter - transform.Position);
+                    ruleVectorLength = maxSpeed;
+                }
+
                 if (speed.value < ruleVectorLength)
                 {
                     speed.value = math.clamp(speed.value + acceleration, speed.value, ruleVectorLength);
@@ -86,12 +88,16 @@ namespace Boids
             float3 adjustedVelocity = math.mul(quaternion.EulerZXY(randomVector), normedRuleVector);
             randoms[threadId] = random;
 
-            quaternion targetRotation = quaternion.LookRotationSafe(adjustedVelocity, new float3(0f, 1f, 0f));
+            quaternion targetRotation = quaternion.LookRotation(adjustedVelocity, new float3(0f, 1f, 0f));
             quaternion smoothRotation;
             MathExtensions.RotateTowards(in transform.Rotation, in targetRotation, out smoothRotation, angularSpeed.value * speedFactor);
             transform.Rotation = smoothRotation;
 
             transform = transform.Translate(math.mul(smoothRotation, new float3(0f, 0f, 1f)) * speed.value);
+            if(boidIndex < boidPositions.Length)
+            {
+                boidPositions[boidIndex] = transform.Position;
+            }
 
             //if (boidIndex == 500)
             //{

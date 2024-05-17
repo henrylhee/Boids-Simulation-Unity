@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c6e79644a9a78a2469094496685d65cf, type: 3}
-  m_Name: Config
+  m_Name: Boidconfig
   m_EditorClassIdentifier: 
   <spawnConfigSO>k__BackingField: {fileID: 11400000, guid: e8c731b23331af54ca2664926776701d, type: 2}
   <movementConfigSO>k__BackingField: {fileID: 11400000, guid: 453f6e308d55fa049b020458efc5a2ea, type: 2}

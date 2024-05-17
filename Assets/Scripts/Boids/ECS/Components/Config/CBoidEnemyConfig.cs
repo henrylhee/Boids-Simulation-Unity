@@ -15,4 +15,6 @@ public struct BoidEnemyConfig
     public float speed { get; private set; }
     [field: SerializeField]
     public float angularSpeed { get; private set; }
+    [field: SerializeField]
+    public float chaseTime { get; private set; }
 }
