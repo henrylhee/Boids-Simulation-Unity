@@ -63,7 +63,7 @@ public class SettingsUIRuntime : MonoBehaviour
             textVisionRadius.text = sliderVisionRadius.value.ToString();
 
             sliderRepulsionDistance.minValue = 0;
-            sliderRepulsionDistance.maxValue = 3f;
+            sliderRepulsionDistance.maxValue = 0.1f;
             sliderRepulsionDistance.value = config.behaviourData.Value.repulsionDistance;
             textRepulsionDistance.text = sliderRepulsionDistance.value.ToString();
 
@@ -71,6 +71,21 @@ public class SettingsUIRuntime : MonoBehaviour
             sliderRepulsionStrength.maxValue = 3f;
             sliderRepulsionStrength.value = config.behaviourData.Value.repulsionStrength;
             textRepulsionStrength.text = sliderRepulsionStrength.value.ToString();
+
+            sliderCohesionStrength.minValue = 0;
+            sliderCohesionStrength.maxValue = 1f;
+            sliderCohesionStrength.value = config.behaviourData.Value.cohesionStrength;
+            textCohesionStrength.text = sliderCohesionStrength.value.ToString();
+
+            sliderAlignmentStrength.minValue = 0;
+            sliderAlignmentStrength.maxValue = 1f;
+            sliderAlignmentStrength.value = config.behaviourData.Value.allignmentStrength;
+            textAlignmentStrength.text = sliderAlignmentStrength.value.ToString();
+
+            sliderObjectiveStrength.minValue = 0;
+            sliderObjectiveStrength.maxValue = 1f;
+            sliderObjectiveStrength.value = config.behaviourData.Value.objectiveStrength;
+            textObjectiveStrength.text = sliderObjectiveStrength.value.ToString();
         }
     }
 

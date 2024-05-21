@@ -37,6 +37,9 @@ namespace Boids
         float enemyScale;
         Timer enemyChaseTimer;
 
+        float3 swarmCenter;
+        float maxDistanceBoidToCenter;
+
         NativeArray<RuleData> ruleData;
 
         NativeArray<Random> randoms;
@@ -67,14 +70,16 @@ namespace Boids
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
+            movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
+
             new GatherRuleDataJob
             {
                 RuleDataArray = ruleData,
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
-
-            hashGridBuilder.SetUp(in behaviourData, in ruleData);
+                hashGridBuilder.SetUp(in behaviourData, in ruleData);
             NativeArray<int3> pivots = new NativeArray<int3>(hashGridBuilder.cellCountXYZ, Allocator.TempJob);
             hashGridBuilder.Build(in ruleData, ref pivots, ref cellIndices, ref hashTable);
 
@@ -86,10 +91,9 @@ namespace Boids
         private void Initialize(ref SystemState state)
         {
             boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
-            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
             behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
             movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
-
+            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
             enemyConfig = SystemAPI.GetSingleton<CBoidEnemyConfig>().Config;
 
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
@@ -157,6 +161,9 @@ namespace Boids
 
             swarmTargetIndex = 0;
             swarmTargetPositions = new NativeArray<float3>(swarmTargetsQuery.CalculateEntityCount(), Allocator.Persistent);
+            swarmCenter = new float3();
+            maxDistanceBoidToCenter = 0;
+
             new InitializeSwarmTargetPositionsJob()
             {
                 swarmTargetPositions = this.swarmTargetPositions,
@@ -176,7 +183,7 @@ namespace Boids
         [BurstCompile]
         private void UpdateBoids(in NativeArray<int3> pivots, ref SystemState state)
         {
-            float3 swarmCenter = GetSwarmCenter();
+            GetSwarmCenter();
             float deltaTime = SystemAPI.Time.DeltaTime;
 
             new ApplyRulesJob
@@ -192,6 +199,7 @@ namespace Boids
                 cellCountXY = hashGridBuilder.cellCountXY,
 
                 swarmCenter = swarmCenter,
+                maxDistanceCenter = maxDistanceBoidToCenter,
                 swarmObjective = swarmTargetPositions[swarmTargetIndex],
 
                 pivots = pivots,
@@ -223,7 +231,6 @@ namespace Boids
 
                 randoms = this.randoms,
                 enemyTransforms = this.enemyTransforms,
-
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
@@ -256,15 +263,22 @@ namespace Boids
         }
 
         [BurstCompile]
-        private float3 GetSwarmCenter()
+        private void GetSwarmCenter()
         {
-            float3 result = new float3();
+            swarmCenter = new float3();
+            maxDistanceBoidToCenter = 0;
 
             for(int i = 0; i < ruleData.Length; i++)
             {
-                result += ruleData[i].position;
+                swarmCenter += ruleData[i].position;
             }
-            return result / ruleData.Length;
+            swarmCenter /= ruleData.Length;
+
+            for (int i = 0; i < ruleData.Length; i++)
+            {
+                float distance = math.distance(swarmCenter, ruleData[i].position);
+                if(distance > maxDistanceBoidToCenter) { maxDistanceBoidToCenter = distance; }
+            }
         }
 
         private void UpdateSwarmTargetPosition(float3 swarmCenter)

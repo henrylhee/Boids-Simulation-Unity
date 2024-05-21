@@ -21,7 +21,7 @@ public struct BehaviourData
     public float repulsionDistance;
 
     [Tooltip("The percentage with whom the boid is closing the distance towards the swarmcenter each second."),
-     Range(0, 0.1f)]
+     Range(0, 1f)]
     public float cohesionStrength;
     
     [Tooltip("The strength with whom the boid is getting repulsed from other closeby boids."),
@@ -33,7 +33,7 @@ public struct BehaviourData
     public float allignmentStrength;
 
     [Tooltip("The strength with whom the boid is moving towards an objective."),
-     Range(0, 0.1f)]
+     Range(0, 1f)]
     public float objectiveStrength;
 
     [Tooltip("A boid reacts to enemies within this range.")]

@@ -11,6 +11,7 @@ namespace Boids
         //[ReadOnly] public float deltaTime;
         [ReadOnly] public BehaviourData behaviourData;
         [ReadOnly] public float speedTowardsObjective;
+        [ReadOnly] public float maxDistanceCenter;
         [ReadOnly] public NativeArray<RuleData> ruleData;
 
         [ReadOnly] public NativeArray<int3> pivots;
@@ -95,23 +96,22 @@ namespace Boids
                 repulsionVector = -1 * repulsionVector * behaviourData.repulsionStrength;
             }
 
-            cohesionVector = (swarmCenter - position) * behaviourData.cohesionStrength;
-            cohesionVector = math.clamp(cohesionVector, 0, behaviourData.maxSpeedCohesion);
+            cohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.cohesionStrength * behaviourData.maxSpeedCohesion;
             objectiveVector = math.normalizesafe(swarmObjective - position) * speedTowardsObjective;
             ruleVector.value = allignmentVector + repulsionVector + cohesionVector + objectiveVector;
 
-            //if (boidIndex == 500)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
-            //}
-            //if (boidIndex == 999)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
-            //}
-            //if (boidIndex == 1)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
-            //}
+            if (boidIndex == 500)
+            {
+                UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            }
+            if (boidIndex == 999)
+            {
+                UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            }
+            if (boidIndex == 1)
+            {
+                UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            }
 
             void ProcessBoid(RuleData boidToCheck)
             {
