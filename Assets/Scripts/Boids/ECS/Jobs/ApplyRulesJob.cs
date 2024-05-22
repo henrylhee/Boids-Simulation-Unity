@@ -100,18 +100,18 @@ namespace Boids
             objectiveVector = math.normalizesafe(swarmObjective - position) * speedTowardsObjective;
             ruleVector.value = allignmentVector + repulsionVector + cohesionVector + objectiveVector;
 
-            if (boidIndex == 500)
-            {
-                UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
-            }
-            if (boidIndex == 999)
-            {
-                UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
-            }
-            if (boidIndex == 1)
-            {
-                UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
-            }
+            //if (boidIndex == 500)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //}
+            //if (boidIndex == 999)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //}
+            //if (boidIndex == 1)
+            //{
+            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //}
 
             void ProcessBoid(RuleData boidToCheck)
             {

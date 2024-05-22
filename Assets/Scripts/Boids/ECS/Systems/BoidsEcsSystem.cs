@@ -79,7 +79,8 @@ namespace Boids
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
-                hashGridBuilder.SetUp(in behaviourData, in ruleData);
+
+            hashGridBuilder.SetUp(in behaviourData, in ruleData);
             NativeArray<int3> pivots = new NativeArray<int3>(hashGridBuilder.cellCountXYZ, Allocator.TempJob);
             hashGridBuilder.Build(in ruleData, ref pivots, ref cellIndices, ref hashTable);
 

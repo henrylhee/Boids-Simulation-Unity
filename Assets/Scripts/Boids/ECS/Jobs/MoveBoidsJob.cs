@@ -43,11 +43,15 @@ namespace Boids
             {
                 float3 enemyPosition = enemyTransforms[i].Position;
                 float3 distVector = transform.Position - enemyPosition;
+                float3 distVectorNormed = math.normalizesafe(distVector);
                 float distVectorLength = math.length(distVector);
                 if (distVectorLength > boidEnemyMaxDistance) { continue; }
                 fleeRuleRatio += boidVisionRadius - distVectorLength;
+                float3 enemyDirection = math.mul(transform.Rotation, new float3(0, 0, 1));
+                float beta = math.PI * 0.5f - math.dot(distVectorNormed, enemyDirection);
+                float3 perpendicularVector = distVector - (enemyDirection * (distVector * math.sin(beta)));
                 //float3 orhtoVector = enemyPosition + math.dot()
-                fleeVector += (math.normalizesafe(distVector) /*+ math.normalizesafe()*/) * fleeRuleRatio;
+                fleeVector += math.normalizesafe((distVectorNormed + math.normalizesafe(perpendicularVector))) * fleeRuleRatio;
                 interactionsCount++;
             }
 

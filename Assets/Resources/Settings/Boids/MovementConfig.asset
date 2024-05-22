@@ -17,10 +17,10 @@ MonoBehaviour:
       startSpeed: 0.005
       minSpeed: 0.001
       maxSpeed: 0.1
-      maxSpeedFleeing: 0.4
-      speedTowardsObjective: 0.05
-      startAngularSpeed: 30
-      speedMul: 3
+      maxSpeedFleeing: 0.3
+      speedTowardsObjective: 0.1
+      startAngularSpeed: 60
+      speedMul: 2
       acceleration: 0.1
-      accelerationFleeing: 0.5
+      accelerationFleeing: 0.6
       angularAcceleration: 0
