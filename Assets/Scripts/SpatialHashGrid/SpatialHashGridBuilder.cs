@@ -32,26 +32,13 @@ public struct SpatialHashGridBuilder
     }
 
     [BurstCompile]
-    private void BuildContainers(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
+    private void BuildContainers(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, 
+                                 ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
         for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
         {
             int cellIndex = HashFunction(ruleData[boidIndex].position);
-            //if (cellIndex >= cellCountXYZ || cellIndex < 0)
-            //{
-            //    float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;
-            //    UnityEngine.Debug.Log("#####-----------:");
-            //    UnityEngine.Debug.Log("boundsMin: " + boundsMin);
-            //    UnityEngine.Debug.Log("boundsMax: " + boundsMax);
-            //    UnityEngine.Debug.Log("position: " + ruleData[boidIndex].position);
-            //    UnityEngine.Debug.Log("position for index + 1: " + ruleData[boidIndex + 1].position);
-            //    UnityEngine.Debug.Log("convertedGridLength: " + convertedGridLength);
-            //    UnityEngine.Debug.Log("cellCountAxis: " + cellCountAxis);
-            //    UnityEngine.Debug.Log("cellIndex " + cellIndex + " is greater than cellCountXYZ: " + cellCountXYZ + " in boidIndex: " + boidIndex);
-            //    return;
-            //}
             cellIndices[boidIndex] = cellIndex;
-            
             pivots[cellIndex] = pivots[cellIndex] + new int3(1,0,0);
         }
 

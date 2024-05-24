@@ -21,7 +21,6 @@ namespace Boids
         [ReadOnly] public float objectiveCenterRatio;
         [ReadOnly] public float cohesionStrength;
         [NativeDisableContainerSafetyRestriction] public NativeArray<Unity.Mathematics.Random> randoms;
-        [NativeDisableContainerSafetyRestriction] public NativeArray<float3> boidPositions;
         [NativeSetThreadIndex] [ReadOnly] int threadId;
 
         [ReadOnly] public float boidVisionRadius;
