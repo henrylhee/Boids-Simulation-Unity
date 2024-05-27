@@ -21,7 +21,7 @@ MonoBehaviour:
       allignmentStrength: 0.437
       objectiveStrength: 1
       enemyVisionRadius: 0.4
-      DirectionRandomness: 0.32
+      DirectionRandomness: 0
       objectiveCenterRatio: 0
       swarmTargetRadius: 0.5
       maxSpeedCohesion: 0.4
