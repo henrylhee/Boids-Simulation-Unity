@@ -11,26 +11,30 @@ public struct CBehaviourData : IComponentData
 [Serializable]
 public struct BehaviourData
 {
-    // cohesionDistance has to be greater than repulsionDistance
+    // cohesionDistance has to be greater than separationDistance
 
     [Header("Behaviour Settings"),
      Tooltip("The distance used to calculate the center of mass.")]
     public float visionRange;
 
-    [Tooltip("The distance used to apply the rule of repulsion.")]
-    public float repulsionDistance;
+    //[Tooltip("The distance used to apply the rule of separation.")]
+    //public float separationDistance;
+
+    [Tooltip("The strength with whom the boid is moving towards the local center of mass."),
+     Range(0, 1f)]
+    public float cohesionStrength;
 
     [Tooltip("The percentage with whom the boid is closing the distance towards the swarmcenter each second."),
      Range(0, 1f)]
-    public float cohesionStrength;
-    
+    public float globalCohesionStrength;
+
     [Tooltip("The strength with whom the boid is getting repulsed from other closeby boids."),
      Range(0, 2)]
-    public float repulsionStrength;
+    public float separationStrength;
 
-    [Tooltip("The strength with whom the boid is alligning with other closeby boids."),
+    [Tooltip("The strength with whom the boid is aligning with other closeby boids."),
      Range(0,1)]
-    public float allignmentStrength;
+    public float alignmentStrength;
 
     [Tooltip("The strength with whom the boid is moving towards an objective."),
      Range(0, 1f)]
@@ -42,10 +46,6 @@ public struct BehaviourData
     [Tooltip("The randomness of the targetVector direction in degrees."),
      Range(0, 10)]
     public float DirectionRandomness;
-
-    [Tooltip("The ratio between the movement vectors of swarmObjective / swarmCenter."),
-     Range(0, 1)]
-    public float objectiveCenterRatio;
 
     [Tooltip("This radius around the swarm target position describes a sphere. " +
              "When the mass center of the swarm is inside, the swarm target position is updated.")]

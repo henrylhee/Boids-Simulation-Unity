@@ -22,8 +22,8 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        Vector3 allignedMoveVector = transform.right * moveVector.x + transform.forward * moveVector.y;
-        transform.position = transform.position + allignedMoveVector * startSpeed * speedMulti * Time.deltaTime;
+        Vector3 alignedMoveVector = transform.right * moveVector.x + transform.forward * moveVector.y;
+        transform.position = transform.position + alignedMoveVector * startSpeed * speedMulti * Time.deltaTime;
 
         if(mouseRightPressed)
         {

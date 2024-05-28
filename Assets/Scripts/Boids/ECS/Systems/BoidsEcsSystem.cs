@@ -225,7 +225,6 @@ namespace Boids
                 minSpeed = movementData.minSpeed * speedFactor,
                 acceleration = movementData.acceleration * deltaTime,
                 accelerationFleeing = movementData.accelerationFleeing * deltaTime,
-                objectiveCenterRatio = behaviourData.objectiveCenterRatio,
                 maxRadiansRandom = (behaviourData.DirectionRandomness / 360f) * math.PI * 2f,
                 boidVisionRadius = this.boidVisionRadius,
                 boidEnemyMaxDistance = this.boidVisionRadius + enemyScale,

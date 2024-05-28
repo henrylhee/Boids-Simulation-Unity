@@ -15,9 +15,9 @@ public class SettingsUIRuntime : MonoBehaviour
     TMPro.TextMeshProUGUI textVisionRadius;
 
     [SerializeField]
-    Slider sliderRepulsionDistance;
+    Slider sliderGlobalCohesionStrength;
     [SerializeField]
-    TMPro.TextMeshProUGUI textRepulsionDistance;
+    TMPro.TextMeshProUGUI textGlobalCohesionStrength;
 
     [SerializeField]
     Slider sliderCohesionStrength;
@@ -25,9 +25,9 @@ public class SettingsUIRuntime : MonoBehaviour
     TMPro.TextMeshProUGUI textCohesionStrength;
 
     [SerializeField]
-    Slider sliderRepulsionStrength;
+    Slider sliderSeparationStrength;
     [SerializeField]
-    TMPro.TextMeshProUGUI textRepulsionStrength;
+    TMPro.TextMeshProUGUI textSeparationStrength;
 
     [SerializeField]
     Slider sliderAlignmentStrength;
@@ -58,15 +58,15 @@ public class SettingsUIRuntime : MonoBehaviour
             sliderVisionRadius.value = config.ValueRW.behaviourData.Value.visionRange;
             textVisionRadius.text = sliderVisionRadius.value.ToString();
 
-            sliderRepulsionDistance.minValue = 0;
-            sliderRepulsionDistance.maxValue = 0.1f;
-            sliderRepulsionDistance.value = config.ValueRW.behaviourData.Value.repulsionDistance;
-            textRepulsionDistance.text = sliderRepulsionDistance.value.ToString();
+            sliderGlobalCohesionStrength.minValue = 0;
+            sliderGlobalCohesionStrength.maxValue = 0.1f;
+            sliderGlobalCohesionStrength.value = config.ValueRW.behaviourData.Value.globalCohesionStrength;
+            textGlobalCohesionStrength.text = sliderGlobalCohesionStrength.value.ToString();
 
-            sliderRepulsionStrength.minValue = 0;
-            sliderRepulsionStrength.maxValue = 3f;
-            sliderRepulsionStrength.value = config.ValueRW.behaviourData.Value.repulsionStrength;
-            textRepulsionStrength.text = sliderRepulsionStrength.value.ToString();
+            sliderSeparationStrength.minValue = 0;
+            sliderSeparationStrength.maxValue = 3f;
+            sliderSeparationStrength.value = config.ValueRW.behaviourData.Value.separationStrength;
+            textSeparationStrength.text = sliderSeparationStrength.value.ToString();
 
             sliderCohesionStrength.minValue = 0;
             sliderCohesionStrength.maxValue = 1f;
@@ -75,7 +75,7 @@ public class SettingsUIRuntime : MonoBehaviour
 
             sliderAlignmentStrength.minValue = 0;
             sliderAlignmentStrength.maxValue = 1f;
-            sliderAlignmentStrength.value = config.ValueRW.behaviourData.Value.allignmentStrength;
+            sliderAlignmentStrength.value = config.ValueRW.behaviourData.Value.alignmentStrength;
             textAlignmentStrength.text = sliderAlignmentStrength.value.ToString();
 
             sliderObjectiveStrength.minValue = 0;
@@ -94,12 +94,12 @@ public class SettingsUIRuntime : MonoBehaviour
         }
     }
 
-    public void ChangeRepulsionDistance()
+    public void ChangeGlobalCohesionStrength()
     {
         if (configQuery.TryGetSingletonRW<CBoidsConfig>(out var config))
         {
-            config.ValueRW.behaviourData.Value.repulsionDistance = sliderRepulsionDistance.value;
-            textRepulsionDistance.text = sliderRepulsionDistance.value.ToString();
+            config.ValueRW.behaviourData.Value.globalCohesionStrength = sliderGlobalCohesionStrength.value;
+            textGlobalCohesionStrength.text = sliderGlobalCohesionStrength.value.ToString();
         }
     }
 
@@ -112,12 +112,12 @@ public class SettingsUIRuntime : MonoBehaviour
         }
     }
 
-    public void ChangeRepulsionStrength()
+    public void ChangeSeparationStrength()
     {
         if (configQuery.TryGetSingletonRW<CBoidsConfig>(out var config))
         {
-            config.ValueRW.behaviourData.Value.repulsionStrength = sliderRepulsionStrength.value;
-            textRepulsionStrength.text = sliderRepulsionStrength.value.ToString();
+            config.ValueRW.behaviourData.Value.separationStrength = sliderSeparationStrength.value;
+            textSeparationStrength.text = sliderSeparationStrength.value.ToString();
         }
     }
 
@@ -125,7 +125,7 @@ public class SettingsUIRuntime : MonoBehaviour
     {
         if (configQuery.TryGetSingletonRW<CBoidsConfig>(out var config))
         {
-            config.ValueRW.behaviourData.Value.allignmentStrength = sliderAlignmentStrength.value;
+            config.ValueRW.behaviourData.Value.alignmentStrength = sliderAlignmentStrength.value;
             textAlignmentStrength.text = sliderAlignmentStrength.value.ToString();
         }
     }

@@ -15,14 +15,13 @@ MonoBehaviour:
   <Value>k__BackingField:
     Value:
       visionRange: 0.05
-      repulsionDistance: 0.035
       cohesionStrength: 0.053
-      repulsionStrength: 2
-      allignmentStrength: 0.437
+      globalCohesionStrength: 0.121
+      separationStrength: 0.32
+      alignmentStrength: 0.346
       objectiveStrength: 1
       enemyVisionRadius: 0.4
       DirectionRandomness: 0.32
-      objectiveCenterRatio: 0
       swarmTargetRadius: 0.5
       maxSpeedCohesion: 0.4
       maxSpeedObjective: 0.05

@@ -1087,7 +1087,7 @@ GameObject:
   - component: {fileID: 344550069}
   - component: {fileID: 344550068}
   m_Layer: 5
-  m_Name: RepulsionDistance
+  m_Name: GlobalCohesionStrength
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3566,12 +3566,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sliderVisionRadius: {fileID: 1589692687}
   textVisionRadius: {fileID: 1754904131}
-  sliderRepulsionDistance: {fileID: 1012076977}
-  textRepulsionDistance: {fileID: 1581313281}
+  sliderGlobalCohesionStrength: {fileID: 1012076977}
+  textGlobalCohesionStrength: {fileID: 1581313281}
   sliderCohesionStrength: {fileID: 145135068}
   textCohesionStrength: {fileID: 1725674438}
-  sliderRepulsionStrength: {fileID: 377798391}
-  textRepulsionStrength: {fileID: 201892432}
+  sliderSeparationStrength: {fileID: 377798391}
+  textSeparationStrength: {fileID: 201892432}
   sliderAlignmentStrength: {fileID: 873029338}
   textAlignmentStrength: {fileID: 1769798758}
   sliderObjectiveStrength: {fileID: 1101097820}
@@ -4368,7 +4368,7 @@ GameObject:
   - component: {fileID: 1098489801}
   - component: {fileID: 1098489800}
   m_Layer: 5
-  m_Name: RepulsionStrength
+  m_Name: SeparationStrength
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6545,7 +6545,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Repulsion distance
+  m_text: Global cohesion strength
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

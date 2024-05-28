@@ -35,17 +35,17 @@ namespace Boids
             int3 cell = new int3((int)convertedPosition.x, (int)convertedPosition.y, (int)convertedPosition.z);
             int3 pivot = pivots[cellIndex];
 
-            float3 repulsionVector = float3.zero;
-            int repulsionCounter = 0;
+            float3 separationVector = float3.zero;
 
-            float3 allignmentVector = float3.zero;
-            int allignCounter = 0;
-
+            float3 alignmentVector = float3.zero;
             float3 cohesionVector = float3.zero;
+            float3 addedPositions = float3.zero;
+            int boidCount = 0;
+
+            float3 globalCohesionVector = float3.zero;
             float3 objectiveVector = float3.zero;
 
-            float visionRange = behaviourData.visionRange;
-            float repulsionDistance = behaviourData.repulsionDistance;
+            float visionRangeSq = behaviourData.visionRange * behaviourData.visionRange;
 
             // iterate over all boids in the cell of the currently processed boid
             for (int i = pivot.y; i < pivot.z; i++)
@@ -61,11 +61,11 @@ namespace Boids
             }
 
             // get the cells surrounding the cell of the currently processed boid and iterate over all boids inside
-            for(int x = cell.x - 1; x <= cell.x + 1;  x++)
+            for (int x = cell.x - 1; x <= cell.x + 1; x++)
             {
-                if(x < 0 || x >= cellCountAxis.x) { continue; }
+                if (x < 0 || x >= cellCountAxis.x) { continue; }
 
-                for(int y = cell.y - 1; y <= cell.y + 1; y++)
+                for (int y = cell.y - 1; y <= cell.y + 1; y++)
                 {
                     if (y < 0 || y >= cellCountAxis.y) { continue; }
 
@@ -76,7 +76,7 @@ namespace Boids
 
                         int cellIndexToCheck = x + y * cellCountAxis.x + z * cellCountXY;
                         int3 pivotToCheck = pivots[cellIndexToCheck];
-                        if(pivotToCheck.x == 0) { continue; }
+                        if (pivotToCheck.x == 0) { continue; }
 
                         for (int i = pivotToCheck.y; i < pivotToCheck.z; i++)
                         {
@@ -87,44 +87,47 @@ namespace Boids
                 }
             }
 
-            if(allignCounter > 0)
+            if (boidCount > 0)
             {
-                allignmentVector = (allignmentVector / allignCounter) * behaviourData.allignmentStrength;
-            }
-            if (repulsionCounter > 0)
-            {
-                repulsionVector = -1 * repulsionVector * behaviourData.repulsionStrength;
+                alignmentVector = (alignmentVector / boidCount) * behaviourData.alignmentStrength;
+                float3 towardsMassCenter = cohesionVector / boidCount - position;
+                float3 towardsMassCenterNormed = math.normalize(towardsMassCenter);
+                float separateUrgency = 1 - math.lengthsq(towardsMassCenter) / visionRangeSq;
+
+                cohesionVector = towardsMassCenterNormed * behaviourData.cohesionStrength;
+                separationVector = -1 * towardsMassCenterNormed * separateUrgency * behaviourData.separationStrength;
             }
 
-            cohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.cohesionStrength * behaviourData.maxSpeedCohesion;
-            objectiveVector = math.normalizesafe(swarmObjective - position) * speedTowardsObjective;
-            ruleVector.value = allignmentVector + repulsionVector + cohesionVector + objectiveVector;
+            globalCohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.globalCohesionStrength * behaviourData.maxSpeedCohesion;
+            objectiveVector = math.normalize(swarmObjective - position) * speedTowardsObjective;
+            ruleVector.value = alignmentVector + separationVector + cohesionVector + globalCohesionVector + objectiveVector;
 
             //if (boidIndex == 500)
             //{
-            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
             //}
             //if (boidIndex == 999)
             //{
-            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
             //}
             //if (boidIndex == 1)
             //{
-            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". allignmentVector: " + math.length(allignmentVector) + ". repulsionVector: " + math.length(repulsionVector) + ". objectiveVector: " + math.length(objectiveVector));
+            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
             //}
 
             void ProcessBoid(RuleData boidToCheck)
             {
                 float3 distVector = boidToCheck.position - position;
-                float distVectorLength = math.length(distVector);
+                float distVectorLengthSq = math.lengthsq(distVector);
 
-                if (distVectorLength > visionRange) { return; }
-                allignmentVector += math.mul(boidToCheck.rotation, new float3(0f,0f,1f)) * boidToCheck.speed;
-                allignCounter++;
+                if (distVectorLengthSq > visionRangeSq) { return; }
+                alignmentVector += math.mul(boidToCheck.rotation, new float3(0f,0f,1f)) * boidToCheck.speed;
+                cohesionVector += boidToCheck.position;
+                boidCount++;
 
-                if (distVectorLength > repulsionDistance) { return; }
-                repulsionVector += (repulsionDistance - distVectorLength) * math.normalizesafe(distVector);
-                repulsionCounter++;
+                //if (distVectorLengthSq > separationDistanceSq) { return; }
+                //separationVector += (separationDistance - distVectorLength) * math.normalize(distVector);
+                //separationCounter++;
             } 
         }
     }
