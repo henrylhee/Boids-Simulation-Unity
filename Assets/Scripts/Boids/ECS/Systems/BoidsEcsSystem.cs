@@ -7,6 +7,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
+using Unity.Physics;
 using Unity.Transforms;
 
 namespace Boids
@@ -41,12 +42,14 @@ namespace Boids
         float maxDistanceBoidToCenter;
 
         NativeArray<RuleData> ruleData;
+        NativeArray<ObstacleData> boidObstacleInfo;
 
         NativeArray<Random> randoms;
 
         EntityQuery boidsQuery;
         EntityQuery boidsEnemyQuery;
         EntityQuery swarmTargetsQuery;
+        EntityQuery boidColliderQuery;
 
 
         [BurstCompile]
@@ -56,6 +59,7 @@ namespace Boids
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
             boidsEnemyQuery = SystemAPI.QueryBuilder().WithAspect<BoidEnemyAspect>().Build();
             swarmTargetsQuery = SystemAPI.QueryBuilder().WithAll<CSwarmTarget>().WithAll<LocalToWorld>().Build();
+            boidColliderQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().Build();
         }
 
         [BurstCompile]
@@ -363,6 +367,18 @@ namespace Boids
         public void Execute(in CSwarmTarget swarmTarget, in LocalToWorld localToWorld)
         {
             swarmTargetPositions[swarmTarget.index] = localToWorld.Position;
+        }
+    }
+
+    [BurstCompile]
+    partial struct DetectBoidObstacleInteractionJob : IJobEntity
+    {
+        public NativeArray<ObstacleData> boidsObstacleInfo;
+
+        [BurstCompile]
+        public void Execute(in PhysicsCollider collider)
+        {
+            collider.
         }
     }
 }
