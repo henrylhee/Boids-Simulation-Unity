@@ -46,12 +46,12 @@ namespace Boids
         NativeArray<RuleData> ruleData;
         NativeArray<ObstacleData> boidObstacleInfo;
 
-        NativeArray<Random> randoms;
+        NativeArray<Unity.Mathematics.Random> randoms;
 
         EntityQuery boidsQuery;
         EntityQuery boidsEnemyQuery;
         EntityQuery swarmTargetsQuery;
-        EntityQuery boidColliderQuery;
+        EntityQuery boidObstacleQuery;
 
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -61,7 +61,7 @@ namespace Boids
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
             boidsEnemyQuery = SystemAPI.QueryBuilder().WithAspect<BoidEnemyAspect>().Build();
             swarmTargetsQuery = SystemAPI.QueryBuilder().WithAll<CSwarmTarget>().WithAll<LocalToWorld>().Build();
-            boidColliderQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().Build();
+            boidObstacleQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().Build();
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -110,7 +110,7 @@ namespace Boids
             boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             boidTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            randoms = new NativeArray<Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            randoms = new NativeArray<Unity.Mathematics.Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             spawnDataBuilder = new SpawnDataBuilder();
             hashGridBuilder = new SpatialHashGridBuilder();
@@ -219,7 +219,7 @@ namespace Boids
 
             for (int i = 0; i < randoms.Length; i++)
             {
-                randoms[i] = new Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+                randoms[i] = new Unity.Mathematics.Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
             }
 
             float speedFactor = deltaTime * movementData.speedMul;
@@ -287,6 +287,7 @@ namespace Boids
             }
         }
 
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void UpdateSwarmTargetPosition(float3 swarmCenter)
         {
             float3 offsetPosition = new float3(behaviourData.swarmTargetRadius, 
@@ -307,6 +308,44 @@ namespace Boids
             else
             {
                 swarmTargetIndex = 0;
+            }
+        }
+
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+        private void GetBoidObstacleCollisionInfo(ref SystemState state)
+        {
+            int obstacleCount = boidObstacleQuery.CalculateEntityCount();
+            NativeArray<bool> hasOVerlapObstacles = new NativeArray<bool>(obstacleCount, Allocator.TempJob);
+            NativeArray<MinMaxAABB> obstacleAABBs = new NativeArray<MinMaxAABB>(obstacleCount, Allocator.TempJob);
+            MinMaxAABB hashMapBounds = new MinMaxAABB
+            {
+                Min = hashGridBuilder.boundsMin,
+                Max = hashGridBuilder.boundsMax
+            };
+
+            new FindObstacleHashMapOverlapsJob
+            {
+                hashMapBoundsExtended = new MinMaxAABB
+                {
+                    Min = hashMapBounds.Min - behaviourData.obstacleInteractionRadius,
+                    Max = hashMapBounds.Max + behaviourData.obstacleInteractionRadius
+                },
+                HasOverlapObstacles = hasOVerlapObstacles,
+                obstacleAABBs = obstacleAABBs
+            }
+            .ScheduleParallel(boidObstacleQuery, new JobHandle())
+            .Complete();
+
+            float conversionFactor = 1 / behaviourData.visionRange;
+            for (int i = 0; i < obstacleCount; i++)
+            {
+                if (hasOVerlapObstacles[i])
+                {
+                    MinMaxAABB overlapArea;
+                    CollisionExtension.GetAABBHashMapOverlapArea(in conversionFactor, in hashMapBounds, obstacleAABBs[i], out overlapArea);
+
+
+                }
             }
         }
 

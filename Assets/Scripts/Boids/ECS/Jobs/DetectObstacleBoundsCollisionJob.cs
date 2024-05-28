@@ -11,20 +11,22 @@ using UnityEngine;
 namespace Boids
 {
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    partial struct DetectObstacleBoundsCollisionJob : IJobEntity
+    partial struct FindObstacleHashMapOverlapsJob : IJobEntity
     {
-        [ReadOnly] public MinMaxAABB hashMapBounds;
-        public NativeArray<bool> collidesWithHashMap;
+        [ReadOnly] public MinMaxAABB hashMapBoundsExtended;
+        public NativeArray<bool> HasOverlapObstacles;
+        public NativeArray<MinMaxAABB> obstacleAABBs;
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int index, in RenderBounds bounds)
         {
-            MinMaxAABB minMaxBounds = new MinMaxAABB
+            MinMaxAABB obstacleBounds = new MinMaxAABB
             {
-                Min = new float3(),
-                Max = new float3(),
+                Min = bounds.Value.Min,
+                Max = bounds.Value.Max,
             };
-            collidesWithHashMap[index] = CollisionExtension.CheckAABBCollision(hashMapBounds, );
+            HasOverlapObstacles[index] = CollisionExtension.CheckAABBOverlap(in hashMapBoundsExtended, in obstacleBounds);
+            obstacleAABBs[index] = obstacleBounds;
         }
     }
 }

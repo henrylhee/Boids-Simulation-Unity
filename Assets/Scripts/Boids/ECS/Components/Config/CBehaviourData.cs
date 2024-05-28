@@ -43,6 +43,9 @@ public struct BehaviourData
     [Tooltip("A boid reacts to enemies within this range.")]
     public float enemyVisionRadius;
 
+    [Tooltip("A boid reacts to obstacles within this range.")]
+    public float obstacleInteractionRadius;
+
     [Tooltip("The randomness of the targetVector direction in degrees."),
      Range(0, 10)]
     public float DirectionRandomness;
