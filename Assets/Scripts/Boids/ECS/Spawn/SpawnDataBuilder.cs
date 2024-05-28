@@ -6,17 +6,17 @@ using Random = UnityEngine.Random;
 
 namespace Boids
 {
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     public struct SpawnDataBuilder
     {
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void GenerateCubeSpawnData(in SpawnData settings, ref NativeArray<float3> positions, ref NativeArray<quaternion> rotations)
         {
             GenerateCubePositions(settings.boidCount, settings.center, settings.spawnDistance, ref positions);
             GenerateCubeRotations(settings.boidCount, ref rotations);
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void GenerateCubePositions(int boidCount, in float3 center, float spawnDistance, ref NativeArray<float3> positions)
         {
             int edgeCount = 2;
@@ -122,7 +122,7 @@ namespace Boids
             return;
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void GenerateCubeRotations(int boidCount, ref NativeArray<quaternion> rotations)
         {
             quaternion randomRotation = Random.rotation;

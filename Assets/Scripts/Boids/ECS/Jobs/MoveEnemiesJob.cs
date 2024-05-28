@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Boids
 {
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct MoveEnemiesJob : IJobEntity
     {
         [ReadOnly] public NativeArray<float3> targetPositions;
@@ -18,7 +18,7 @@ namespace Boids
 
         [NativeDisableContainerSafetyRestriction] public NativeArray<LocalTransform> enemyTransforms;
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int enemyIndex, ref LocalTransform transform)
         {
             float3 towardsTargetdirection = targetPositions[enemyIndex] - transform.Position;

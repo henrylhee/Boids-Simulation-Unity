@@ -40,7 +40,7 @@ namespace Boids
             return dependency;
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private unsafe struct GatherPositionsJob : IJobChunk
         {
             [ReadOnly]

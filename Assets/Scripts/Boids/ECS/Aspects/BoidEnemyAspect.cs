@@ -5,7 +5,7 @@ using Unity.Transforms;
 
 namespace Boids
 {
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     public readonly partial struct BoidEnemyAspect : IAspect
     {
         private readonly RefRO<CBoidEnemyTag> boidEnemyTag;

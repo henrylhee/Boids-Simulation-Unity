@@ -8,7 +8,9 @@ using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Physics;
+using Unity.Rendering;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Boids
 {
@@ -52,7 +54,7 @@ namespace Boids
         EntityQuery boidColliderQuery;
 
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<CBoidsConfig>();
@@ -62,7 +64,7 @@ namespace Boids
             boidColliderQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().Build();
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void OnStartRunning(ref SystemState state)
         {
             Initialize(ref state);
@@ -71,7 +73,7 @@ namespace Boids
             InitializeEnemies(ref state);
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void OnUpdate(ref SystemState state)
         {
             behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
@@ -92,7 +94,7 @@ namespace Boids
             UpdateEnemies(ref state);
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void Initialize(ref SystemState state)
         {
             boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
@@ -117,7 +119,7 @@ namespace Boids
             enemyChaseTimer.Initialize(enemyConfig.chaseTime);
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void SpawnBoids(ref SystemState state)
         {
             for(int i = 0; i < spawnData.boidCount; i++)
@@ -142,7 +144,7 @@ namespace Boids
             rotations.Dispose();
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void InitializeEnemies(ref SystemState state)
         {
             enemyTransforms = new NativeArray<LocalTransform>(boidTargetIndices.Length, Allocator.Persistent);
@@ -159,7 +161,7 @@ namespace Boids
             .Complete();
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void InitializeBoids(ref SystemState state)
         {
             boidVisionRadius = behaviourData.enemyVisionRadius;
@@ -176,7 +178,7 @@ namespace Boids
             .Schedule(swarmTargetsQuery);
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void SetRandomEnemyTargets()
         {
             for (int i = 0; i < boidTargetIndices.Length; i++)
@@ -185,7 +187,7 @@ namespace Boids
             }
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void UpdateBoids(in NativeArray<int3> pivots, ref SystemState state)
         {
             GetSwarmCenter();
@@ -266,7 +268,7 @@ namespace Boids
             .Complete();
         }
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void GetSwarmCenter()
         {
             swarmCenter = new float3();
@@ -324,7 +326,7 @@ namespace Boids
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct InitializeBoidsJob : IJobEntity
     {
         [ReadOnly] public float startSpeed;
@@ -333,7 +335,7 @@ namespace Boids
         [ReadOnly] public NativeArray<quaternion> rotations;
 
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
         {
             speed.value = startSpeed;
@@ -342,14 +344,14 @@ namespace Boids
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct InitializeEnemiesJob : IJobEntity
     {
         [ReadOnly] public float speed;
         [ReadOnly] public float angularSpeed;
         [NativeDisableContainerSafetyRestriction] public NativeArray<LocalTransform> enemyTransforms;
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int enemyIndex, ref CSpeed speed, ref CAngularSpeed angularSpeed, in LocalTransform transform)
         {
             speed.value = this.speed;
@@ -358,28 +360,18 @@ namespace Boids
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct InitializeSwarmTargetPositionsJob : IJobEntity
     {
         public NativeArray<float3> swarmTargetPositions;
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute(in CSwarmTarget swarmTarget, in LocalToWorld localToWorld)
         {
             swarmTargetPositions[swarmTarget.index] = localToWorld.Position;
         }
     }
 
-    [BurstCompile]
-    partial struct DetectBoidObstacleInteractionJob : IJobEntity
-    {
-        public NativeArray<ObstacleData> boidsObstacleInfo;
-
-        [BurstCompile]
-        public void Execute(in PhysicsCollider collider)
-        {
-            collider.
-        }
-    }
+    
 }
 

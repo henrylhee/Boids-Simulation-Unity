@@ -10,7 +10,7 @@ using UnityEngine;
 
 //namespace Boids
 //{
-//    [BurstCompile]
+//    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 //    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 //    [UpdateAfter(typeof(PhysicsInitializeGroup))]
 //    [UpdateBefore(typeof(PhysicsSimulationGroup))]
@@ -34,7 +34,7 @@ using UnityEngine;
 //        {
 //        }
 
-//        [BurstCompile]
+//        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 //        public void OnUpdate(ref SystemState state)
 //        {
 //            ref BoidsEcsSystem boidsSystem = ref state.WorldUnmanaged.GetUnsafeSystemRef<BoidsEcsSystem>(boidsSystemHandle);
@@ -46,7 +46,7 @@ using UnityEngine;
 //            }.Schedule(state.Dependency);
 //        }
 
-//        [BurstCompile]
+//        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 //        public partial struct ApplyVelocityJob : IJobEntity
 //        {
 //            public PhysicsWorld physicsWorld;

@@ -5,7 +5,7 @@
 
 //namespace Boids
 //{
-//    [BurstCompile]
+//    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 //    partial struct ApplyRulesJob_2 : IJobEntity
 //    {
 //        //[ReadOnly] public float deltaTime;
@@ -22,7 +22,7 @@
 //        [ReadOnly] public float3 boundsMin;
 
 
-//        [BurstCompile]
+//        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 //        public void Execute([EntityIndexInQuery] int boidIndex, ref CRuleVector ruleVector)
 //        {
 //            float3 position = ruleData[boidIndex].position;

@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 using System.Diagnostics;
 using Unity.Entities;
 
-[BurstCompile]
+[BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public struct SpatialHashGridBuilder
 {
     public float conversionFactor { get; private set; }
@@ -16,13 +16,13 @@ public struct SpatialHashGridBuilder
     public int cellCountXYZ{ get; private set; }
 
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     public void Build(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
         BuildContainers(in ruleData, ref pivots, ref cellIndices, ref hashTable);
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     public void SetUp(in BehaviourData settings, in NativeArray<RuleData> ruleData)
     {
         conversionFactor = 1f / settings.visionRange;
@@ -31,7 +31,7 @@ public struct SpatialHashGridBuilder
         SetCellCount();
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     private void BuildContainers(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, 
                                  ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
@@ -62,7 +62,7 @@ public struct SpatialHashGridBuilder
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     private int HashFunction(float3 position)
     {
         float3 convertedPosition = (position - boundsMin) * conversionFactor;
@@ -72,7 +72,7 @@ public struct SpatialHashGridBuilder
         return cell.x + cell.y * cellCountAxis.x + cell.z * cellCountXY;
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     private void UpdateBounds(in NativeArray<RuleData> ruleData)
     {
         float3 newBoundsMin = float3.zero;
@@ -96,7 +96,7 @@ public struct SpatialHashGridBuilder
         boundsMax = newBoundsMax;
     }
 
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     private void SetCellCount()
     {
         float3 convertedGridLength = (boundsMax - boundsMin) * conversionFactor;

@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Boids
 {
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct MoveBoidsJob : IJobEntity
     {
         [ReadOnly] public float speedFactor;
@@ -27,7 +27,7 @@ namespace Boids
         [ReadOnly] public float boidEnemyMaxDistance;
         [ReadOnly] public NativeArray<LocalTransform> enemyTransforms;
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, in CRuleVector ruleVector, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
         {
             float3 normedRuleVector = math.normalizesafe(ruleVector.value);

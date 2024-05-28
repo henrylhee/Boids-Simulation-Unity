@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using Unity.Burst;
 using Unity.Mathematics;
 
-[BurstCompile]
+[BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public static class MathExtensions
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining), BurstCompile]

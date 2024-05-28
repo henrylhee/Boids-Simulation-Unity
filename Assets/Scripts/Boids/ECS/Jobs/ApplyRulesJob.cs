@@ -5,7 +5,7 @@ using Unity.Mathematics;
 
 namespace Boids
 {
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct ApplyRulesJob : IJobEntity
     {
         //[ReadOnly] public float deltaTime;
@@ -26,7 +26,7 @@ namespace Boids
         [ReadOnly] public float3 boundsMin;
 
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, ref CRuleVector ruleVector)
         {
             float3 position = ruleData[boidIndex].position;

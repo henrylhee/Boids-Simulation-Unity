@@ -6,12 +6,12 @@ using Unity.Transforms;
 
 namespace Boids
 {
-    [BurstCompile]
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct GatherRuleDataJob : IJobEntity
     {
         [NativeDisableContainerSafetyRestriction] public NativeArray<RuleData> RuleDataArray;
 
-        [BurstCompile]
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, in CSpeed speed)
         {
             RuleDataArray[boidIndex] = new RuleData
