@@ -1,9 +1,6 @@
 using Unity.Mathematics;
 using Unity.Collections;
 using Unity.Burst;
-using UnityEngine.UIElements;
-using System.Diagnostics;
-using Unity.Entities;
 
 [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public struct SpatialHashGridBuilder
@@ -17,27 +14,27 @@ public struct SpatialHashGridBuilder
 
 
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    public void Build(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
+    public void Build(in NativeArray<BoidData> boidData, ref NativeArray<int3> pivots, ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
-        BuildContainers(in ruleData, ref pivots, ref cellIndices, ref hashTable);
+        BuildContainers(in boidData, ref pivots, ref cellIndices, ref hashTable);
     }
 
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    public void SetUp(in BehaviourData settings, in NativeArray<RuleData> ruleData)
+    public void SetUp(in BehaviourData settings, in NativeArray<BoidData> boidData)
     {
         conversionFactor = 1f / settings.visionRange;
 
-        UpdateBounds(in ruleData);
+        UpdateBounds(in boidData);
         SetCellCount();
     }
 
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    private void BuildContainers(in NativeArray<RuleData> ruleData, ref NativeArray<int3> pivots, 
+    private void BuildContainers(in NativeArray<BoidData> boidData, ref NativeArray<int3> pivots, 
                                  ref NativeArray<int> cellIndices, ref NativeArray<int> hashTable)
     {
-        for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
+        for (int boidIndex = 0; boidIndex < boidData.Length; boidIndex++)
         {
-            int cellIndex = HashFunction(ruleData[boidIndex].position);
+            int cellIndex = HashFunction(boidData[boidIndex].position);
             cellIndices[boidIndex] = cellIndex;
             pivots[cellIndex] = pivots[cellIndex] + new int3(1,0,0);
         }
@@ -54,7 +51,7 @@ public struct SpatialHashGridBuilder
         }
 
         NativeArray<int> hashBucketCount = new NativeArray<int>(pivots.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);
-        for (int boidIndex = 0; boidIndex < ruleData.Length; boidIndex++)
+        for (int boidIndex = 0; boidIndex < boidData.Length; boidIndex++)
         {
             int cellIndex = cellIndices[boidIndex];
             hashTable[pivots[cellIndex].y + hashBucketCount[cellIndex]] = boidIndex;
@@ -73,14 +70,14 @@ public struct SpatialHashGridBuilder
     }
 
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    private void UpdateBounds(in NativeArray<RuleData> ruleData)
+    private void UpdateBounds(in NativeArray<BoidData> boidData)
     {
         float3 newBoundsMin = float3.zero;
         float3 newBoundsMax = float3.zero;
 
-        for (int i = 0;  i < ruleData.Length; i++)
+        for (int i = 0;  i < boidData.Length; i++)
         {
-            float3 position = ruleData[i].position;
+            float3 position = boidData[i].position;
 
             if(position.x > newBoundsMax.x) { newBoundsMax.x = position.x; }
             if(position.x < newBoundsMin.x) { newBoundsMin.x = position.x; }

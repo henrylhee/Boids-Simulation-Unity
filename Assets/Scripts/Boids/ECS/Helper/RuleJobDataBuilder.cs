@@ -7,14 +7,14 @@ using Unity.Transforms;
 namespace Boids
 {
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    partial struct GatherRuleDataJob : IJobEntity
+    partial struct GatherBoidDataJob : IJobEntity
     {
-        [NativeDisableContainerSafetyRestriction] public NativeArray<RuleData> RuleDataArray;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<BoidData> boidData;
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, in LocalTransform transform, in CSpeed speed)
         {
-            RuleDataArray[boidIndex] = new RuleData
+            boidData[boidIndex] = new BoidData
             {
                 position = transform.Position,
                 rotation = transform.Rotation,

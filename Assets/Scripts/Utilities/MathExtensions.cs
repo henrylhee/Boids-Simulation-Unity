@@ -5,6 +5,7 @@ using Unity.Mathematics;
 [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
 public static class MathExtensions
 {
+    // Code from Unity forum user "eizenhorn". https://forum.unity.com/threads/rotate-towards-c-jobs.836356/#post-5530615
     [MethodImpl(MethodImplOptions.AggressiveInlining), BurstCompile]
     public static void RotateTowards(
             in quaternion from,

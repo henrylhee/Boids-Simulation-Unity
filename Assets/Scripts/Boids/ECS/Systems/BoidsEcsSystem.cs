@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -8,9 +6,7 @@ using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Physics;
-using Unity.Rendering;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace Boids
 {
@@ -43,7 +39,7 @@ namespace Boids
         float3 swarmCenter;
         float maxDistanceBoidToCenter;
 
-        NativeArray<RuleData> ruleData;
+        NativeArray<BoidData> boidData;
         NativeArray<ObstacleData> boidObstacleInfo;
 
         NativeArray<Unity.Mathematics.Random> randoms;
@@ -79,19 +75,21 @@ namespace Boids
             behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
             movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
 
-            new GatherRuleDataJob
+            new GatherBoidDataJob
             {
-                RuleDataArray = ruleData,
+                boidData = boidData,
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
 
-            hashGridBuilder.SetUp(in behaviourData, in ruleData);
+            hashGridBuilder.SetUp(in behaviourData, in boidData);
             NativeArray<int3> pivots = new NativeArray<int3>(hashGridBuilder.cellCountXYZ, Allocator.TempJob);
-            hashGridBuilder.Build(in ruleData, ref pivots, ref cellIndices, ref hashTable);
+            hashGridBuilder.Build(in boidData, ref pivots, ref cellIndices, ref hashTable);
 
+            UpdateBoidObstacleCollision(ref state, in pivots);
             UpdateBoids(in pivots, ref state);
             UpdateEnemies(ref state);
+            pivots.Dispose();
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -105,7 +103,7 @@ namespace Boids
 
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
-            ruleData = new NativeArray<RuleData>(spawnData.boidCount, Allocator.Persistent);
+            boidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
 
             boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             boidTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
@@ -198,7 +196,7 @@ namespace Boids
                 behaviourData = this.behaviourData,
                 speedTowardsObjective = movementData.speedTowardsObjective * deltaTime,
 
-                ruleData = this.ruleData,
+                boidData = this.boidData,
 
                 boundsMin = hashGridBuilder.boundsMin,
                 conversionFactor = hashGridBuilder.conversionFactor,
@@ -215,7 +213,6 @@ namespace Boids
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
-            pivots.Dispose();
 
             for (int i = 0; i < randoms.Length; i++)
             {
@@ -253,7 +250,7 @@ namespace Boids
 
             for (int i = 0; i < boidTargetIndices.Length; i++)
             {
-                boidTargetPositions[i] = ruleData[boidTargetIndices[i]].position;
+                boidTargetPositions[i] = boidData[boidTargetIndices[i]].position;
             }
             
             new MoveEnemiesJob
@@ -274,15 +271,15 @@ namespace Boids
             swarmCenter = new float3();
             maxDistanceBoidToCenter = 0;
 
-            for(int i = 0; i < ruleData.Length; i++)
+            for(int i = 0; i < boidData.Length; i++)
             {
-                swarmCenter += ruleData[i].position;
+                swarmCenter += boidData[i].position;
             }
-            swarmCenter /= ruleData.Length;
+            swarmCenter /= boidData.Length;
 
-            for (int i = 0; i < ruleData.Length; i++)
+            for (int i = 0; i < boidData.Length; i++)
             {
-                float distance = math.distance(swarmCenter, ruleData[i].position);
+                float distance = math.distance(swarmCenter, boidData[i].position);
                 if(distance > maxDistanceBoidToCenter) { maxDistanceBoidToCenter = distance; }
             }
         }
@@ -312,10 +309,10 @@ namespace Boids
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        private void GetBoidObstacleCollisionInfo(ref SystemState state)
+        private void UpdateBoidObstacleCollision(ref SystemState state, in NativeArray<int3>  pivots)
         {
             int obstacleCount = boidObstacleQuery.CalculateEntityCount();
-            NativeArray<bool> hasOVerlapObstacles = new NativeArray<bool>(obstacleCount, Allocator.TempJob);
+            NativeArray<bool> hasOverlapObstacles = new NativeArray<bool>(obstacleCount, Allocator.TempJob);
             NativeArray<MinMaxAABB> obstacleAABBs = new NativeArray<MinMaxAABB>(obstacleCount, Allocator.TempJob);
             MinMaxAABB hashMapBounds = new MinMaxAABB
             {
@@ -330,7 +327,7 @@ namespace Boids
                     Min = hashMapBounds.Min - behaviourData.obstacleInteractionRadius,
                     Max = hashMapBounds.Max + behaviourData.obstacleInteractionRadius
                 },
-                HasOverlapObstacles = hasOVerlapObstacles,
+                HasOverlapObstacles = hasOverlapObstacles,
                 obstacleAABBs = obstacleAABBs
             }
             .ScheduleParallel(boidObstacleQuery, new JobHandle())
@@ -339,12 +336,37 @@ namespace Boids
             float conversionFactor = 1 / behaviourData.visionRange;
             for (int i = 0; i < obstacleCount; i++)
             {
-                if (hasOVerlapObstacles[i])
+                if (hasOverlapObstacles[i])
                 {
                     MinMaxAABB overlapArea;
-                    CollisionExtension.GetAABBHashMapOverlapArea(in conversionFactor, in hashMapBounds, obstacleAABBs[i], out overlapArea);
+                    MinMaxAABB obstacleAABB = obstacleAABBs[i];
+                    CollisionExtension.GetAABBHashMapOverlapArea(in conversionFactor, in hashMapBounds, in obstacleAABB, out overlapArea);
 
 
+                    MinMaxAABB localOverlapArea = new MinMaxAABB
+                    {
+                        Min = overlapArea.Min - hashMapBounds.Min,
+                        Max = overlapArea.Max - hashMapBounds.Min
+                    };
+                    int3 areaCellCount = new int3();
+                    new GetBoidObstacleCollisionDataJob
+                    {
+                        cellCountX = ,
+                        cellCountXY,
+                        areaCellCountX,
+                        areaCellCountXY,
+                        areaStartCell,
+                        areaCellOffset,
+
+                        hashPivots = pivots,
+                        hashTable = hashTable,
+                        boidData = boidData,
+
+                        col,
+
+                        obstacleData,
+                    }.Schedule()
+                    .Complete();
                 }
             }
         }
@@ -356,7 +378,7 @@ namespace Boids
         {
             cellIndices.Dispose();
             hashTable.Dispose();
-            ruleData.Dispose();
+            boidData.Dispose();
             randoms.Dispose();
             boidTargetIndices.Dispose();
             boidTargetPositions.Dispose();

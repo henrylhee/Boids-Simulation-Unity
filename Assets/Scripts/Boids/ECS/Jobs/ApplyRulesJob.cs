@@ -12,7 +12,7 @@ namespace Boids
         [ReadOnly] public BehaviourData behaviourData;
         [ReadOnly] public float speedTowardsObjective;
         [ReadOnly] public float maxDistanceCenter;
-        [ReadOnly] public NativeArray<RuleData> ruleData;
+        [ReadOnly] public NativeArray<BoidData> boidData;
 
         [ReadOnly] public NativeArray<int3> pivots;
         [ReadOnly] public NativeArray<int> hashTable;
@@ -29,7 +29,7 @@ namespace Boids
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, ref CRuleVector ruleVector)
         {
-            float3 position = ruleData[boidIndex].position;
+            float3 position = boidData[boidIndex].position;
             int cellIndex = cellIndices[boidIndex];
             float3 convertedPosition = (position - boundsMin) * conversionFactor;
             int3 cell = new int3((int)convertedPosition.x, (int)convertedPosition.y, (int)convertedPosition.z);
@@ -57,7 +57,7 @@ namespace Boids
                     continue;
                 }
                 
-                ProcessBoid(ruleData[boidIndexToCheck]);
+                ProcessBoid(boidData[boidIndexToCheck]);
             }
 
             // get the cells surrounding the cell of the currently processed boid and iterate over all boids inside
@@ -81,7 +81,7 @@ namespace Boids
                         for (int i = pivotToCheck.y; i < pivotToCheck.z; i++)
                         {
                             int boidIndexToCheck = hashTable[i];
-                            ProcessBoid(ruleData[boidIndexToCheck]);
+                            ProcessBoid(boidData[boidIndexToCheck]);
                         }
                     }
                 }
@@ -100,6 +100,7 @@ namespace Boids
 
             globalCohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.globalCohesionStrength * behaviourData.maxSpeedCohesion;
             objectiveVector = math.normalize(swarmObjective - position) * speedTowardsObjective;
+
             ruleVector.value = alignmentVector + separationVector + cohesionVector + globalCohesionVector + objectiveVector;
 
             //if (boidIndex == 500)
@@ -115,7 +116,7 @@ namespace Boids
             //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
             //}
 
-            void ProcessBoid(RuleData boidToCheck)
+            void ProcessBoid(BoidData boidToCheck)
             {
                 float3 distVector = boidToCheck.position - position;
                 float distVectorLengthSq = math.lengthsq(distVector);
@@ -124,10 +125,6 @@ namespace Boids
                 alignmentVector += math.mul(boidToCheck.rotation, new float3(0f,0f,1f)) * boidToCheck.speed;
                 cohesionVector += boidToCheck.position;
                 boidCount++;
-
-                //if (distVectorLengthSq > separationDistanceSq) { return; }
-                //separationVector += (separationDistance - distVectorLength) * math.normalize(distVector);
-                //separationCounter++;
             } 
         }
     }

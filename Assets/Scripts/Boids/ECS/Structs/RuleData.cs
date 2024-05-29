@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-public struct RuleData
+public struct BoidData
 {
     public float3 position;
     public quaternion rotation;
