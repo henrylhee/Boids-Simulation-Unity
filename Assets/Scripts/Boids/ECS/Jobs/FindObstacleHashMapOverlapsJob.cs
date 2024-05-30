@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
@@ -16,11 +17,12 @@ namespace Boids
         [ReadOnly] public MinMaxAABB localHashMapAABBs;
         [ReadOnly] public float3 hashMapMin;
         [ReadOnly] public float obstacleInteractionRadius;
-        public NativeArray<bool> hasOverlapObstacles;
-        public NativeArray<MinMaxAABB> localObstacleAABBsExtended;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<bool> hasOverlapObstacles;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<MinMaxAABB> localObstacleAABBsExtended;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<PhysicsCollider> obstacleColliders;
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        public void Execute([EntityIndexInQuery] int index, in RenderBounds bounds)
+        public void Execute([EntityIndexInQuery] int index, in RenderBounds bounds, in PhysicsCollider col)
         {
             MinMaxAABB localObstacleAABBExtended = new MinMaxAABB
             {
@@ -29,6 +31,7 @@ namespace Boids
             };
             hasOverlapObstacles[index] = CollisionExtension.CheckAABBOverlap(in localHashMapAABBs, in localObstacleAABBExtended);
             localObstacleAABBsExtended[index] = localObstacleAABBExtended;
+            obstacleColliders[index] = col;
         }
     }
 }

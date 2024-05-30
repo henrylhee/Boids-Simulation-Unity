@@ -6,6 +6,7 @@ using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Physics;
+using Unity.Rendering;
 using Unity.Transforms;
 
 namespace Boids
@@ -57,7 +58,7 @@ namespace Boids
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
             boidsEnemyQuery = SystemAPI.QueryBuilder().WithAspect<BoidEnemyAspect>().Build();
             swarmTargetsQuery = SystemAPI.QueryBuilder().WithAll<CSwarmTarget>().WithAll<LocalToWorld>().Build();
-            boidObstacleQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().Build();
+            boidObstacleQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().WithAll<RenderBounds>().WithAll<PhysicsCollider>().Build();
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -315,6 +316,7 @@ namespace Boids
             int obstacleCount = boidObstacleQuery.CalculateEntityCount();
             NativeArray<bool> hasOverlapObstacles = new NativeArray<bool>(obstacleCount, Allocator.TempJob);
             NativeArray<MinMaxAABB> localObstacleAABBsExtended = new NativeArray<MinMaxAABB>(obstacleCount, Allocator.TempJob);
+            NativeArray<PhysicsCollider> obstacleColliders = new NativeArray<PhysicsCollider>(obstacleCount, Allocator.TempJob);
             MinMaxAABB localHashMapAABBs = new MinMaxAABB
             {
                 Min = new float3(0,0,0),
@@ -326,6 +328,7 @@ namespace Boids
                 localHashMapAABBs = localHashMapAABBs,
                 localObstacleAABBsExtended = localObstacleAABBsExtended,
                 hasOverlapObstacles = hasOverlapObstacles,
+                obstacleColliders = obstacleColliders,
                 hashMapMin = hashGridBuilder.boundsMin,
                 obstacleInteractionRadius = behaviourData.obstacleInteractionRadius
             }
@@ -357,10 +360,10 @@ namespace Boids
                         hashTable = hashTable,
                         boidData = boidData,
 
-                        col,
+                        col = obstacleColliders[i],
 
                         obstacleData = boidObstacleData,
-                    }.Schedule()
+                    }.Schedule(areaCellCount.x * areaCellCount.y * areaCellCount.z, 32)
                     .Complete();
                 }
             }

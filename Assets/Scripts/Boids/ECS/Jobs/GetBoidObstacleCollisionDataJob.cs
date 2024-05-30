@@ -30,6 +30,8 @@ namespace Boids
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int areaCellIndex)
         {
+            Collider collider = col.Value.Value;
+
             int x = areaCellIndex % areaCellCountX;
             int z = /*(int)*/areaCellIndex / areaCellCountXY;
             int y = ((areaCellIndex % areaCellCountXY) - x) / areaCellCountX;
@@ -41,9 +43,12 @@ namespace Boids
             int3 pivot = hashPivots[cellIndex];
             for (int i = pivot.y; i < pivot.z; i++)
             {
-                int boidIndexToCheck = hashTable[i];
+                int boidIndex = hashTable[i];
 
-                
+                //float3 boidPosition = boidData[boidIndex].position;
+                //float3 v = collider.CalculateDistance();
+                //CapsuleCollider col = new CapsuleCollider();
+                //col.
             }
         }
     }
