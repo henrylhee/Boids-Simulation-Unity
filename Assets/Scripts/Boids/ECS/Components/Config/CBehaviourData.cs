@@ -50,12 +50,6 @@ public struct BehaviourData
      Range(0, 10)]
     public float DirectionRandomness;
 
-    [Tooltip("This radius around the swarm target position describes a sphere. " +
-             "When the mass center of the swarm is inside, the swarm target position is updated.")]
-    public float swarmTargetRadius;
-
-    public float maxSpeedCohesion;
-
-    public float maxSpeedObjective;
+    public float speedTowardsObjective;
 
 }

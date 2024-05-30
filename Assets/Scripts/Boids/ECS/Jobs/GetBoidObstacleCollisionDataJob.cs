@@ -28,7 +28,7 @@ namespace Boids
 
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        public void Execute([EntityIndexInQuery] int areaCellIndex)
+        public void Execute(int areaCellIndex)
         {
             Collider collider = col.Value.Value;
 

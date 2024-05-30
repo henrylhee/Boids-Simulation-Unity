@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -35,12 +36,15 @@ namespace Boids
         NativeArray<LocalTransform> enemyTransforms;
         float boidVisionRadius;
         float enemyScale;
+
         Timer enemyChaseTimer;
+        Timer boidObjectiveTimer;
 
         float3 swarmCenter;
         float maxDistanceBoidToCenter;
 
         NativeArray<BoidData> boidData;
+        NativeArray<BoidData> sortedBoidData;
         NativeArray<ObstacleData> boidObstacleData;
 
         NativeArray<Unity.Mathematics.Random> randoms;
@@ -87,6 +91,15 @@ namespace Boids
             NativeArray<int3> pivots = new NativeArray<int3>(hashGridBuilder.cellCountXYZ, Allocator.TempJob);
             hashGridBuilder.Build(in boidData, ref pivots, ref cellIndices, ref hashTable);
 
+            new SortBoidDataJob
+            {
+                hashTable = hashTable,
+                boidData = boidData,
+                sortedBoidData = sortedBoidData
+            }
+            .Schedule(boidsQuery.CalculateEntityCount(), 32)
+            .Complete();
+
             UpdateBoidObstacleCollision(ref state, in pivots);
             UpdateBoids(in pivots, ref state);
             UpdateEnemies(ref state);
@@ -105,6 +118,7 @@ namespace Boids
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             boidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
+            sortedBoidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
             boidObstacleData = new NativeArray<ObstacleData>(spawnData.boidCount, Allocator.Persistent);
 
             boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
@@ -117,6 +131,9 @@ namespace Boids
 
             enemyChaseTimer = new Timer();
             enemyChaseTimer.Initialize(enemyConfig.chaseTime);
+
+            boidObjectiveTimer = new Timer();
+            boidObjectiveTimer.Initialize(movementData.towardsObjectiveTime);
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -190,15 +207,29 @@ namespace Boids
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void UpdateBoids(in NativeArray<int3> pivots, ref SystemState state)
         {
-            GetSwarmCenter();
             float deltaTime = SystemAPI.Time.DeltaTime;
+            boidObjectiveTimer.Update(deltaTime);
+            if (boidObjectiveTimer.isFinished)
+            {
+                boidObjectiveTimer.Restart();
+                if (swarmTargetIndex < swarmTargetsQuery.CalculateEntityCount() - 1)
+                {
+                    swarmTargetIndex++;
+                }
+                else
+                {
+                    swarmTargetIndex = 0;
+                }
+            }
+
+            GetSwarmCenter();
 
             new ApplyRulesJob
             {
                 behaviourData = this.behaviourData,
                 speedTowardsObjective = movementData.speedTowardsObjective * deltaTime,
 
-                boidData = this.boidData,
+                sortedBoidData = sortedBoidData,
 
                 boundsMin = hashGridBuilder.boundsMin,
                 conversionFactor = hashGridBuilder.conversionFactor,
@@ -210,7 +241,6 @@ namespace Boids
                 swarmObjective = swarmTargetPositions[swarmTargetIndex],
 
                 pivots = pivots,
-                hashTable = this.hashTable,
                 cellIndices = this.cellIndices,
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
@@ -287,30 +317,6 @@ namespace Boids
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        private void UpdateSwarmTargetPosition(float3 swarmCenter)
-        {
-            float3 offsetPosition = new float3(behaviourData.swarmTargetRadius, 
-                                               behaviourData.swarmTargetRadius, 
-                                               behaviourData.swarmTargetRadius);
-            float3 minPosition = swarmCenter - offsetPosition;
-            float3 maxPosition = swarmCenter + offsetPosition;
-            float3 swarmTargetPosition = swarmTargetPositions[swarmTargetIndex];
-
-            if(swarmTargetPosition.x < minPosition.x || swarmTargetPosition.x > maxPosition.x) { return; }
-            if (swarmTargetPosition.y < minPosition.y || swarmTargetPosition.y > maxPosition.y) { return; }
-            if (swarmTargetPosition.z < minPosition.z || swarmTargetPosition.z > maxPosition.z) { return; }
-
-            if(swarmTargetIndex < swarmTargetsQuery.CalculateEntityCount() - 1)
-            {
-                swarmTargetIndex++;
-            }
-            else
-            {
-                swarmTargetIndex = 0;
-            }
-        }
-
-        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void UpdateBoidObstacleCollision(ref SystemState state, in NativeArray<int3>  pivots)
         {
             int obstacleCount = boidObstacleQuery.CalculateEntityCount();
@@ -377,6 +383,7 @@ namespace Boids
             cellIndices.Dispose();
             hashTable.Dispose();
             boidData.Dispose();
+            sortedBoidData.Dispose();
             boidObstacleData.Dispose();
             randoms.Dispose();
             boidTargetIndices.Dispose();
@@ -431,7 +438,5 @@ namespace Boids
             swarmTargetPositions[swarmTarget.index] = localToWorld.Position;
         }
     }
-
-    
 }
 

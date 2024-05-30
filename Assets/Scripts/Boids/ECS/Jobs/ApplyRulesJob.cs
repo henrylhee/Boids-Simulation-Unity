@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Boids
 {
@@ -12,10 +13,9 @@ namespace Boids
         [ReadOnly] public BehaviourData behaviourData;
         [ReadOnly] public float speedTowardsObjective;
         [ReadOnly] public float maxDistanceCenter;
-        [ReadOnly] public NativeArray<BoidData> boidData;
+        [ReadOnly] public NativeArray<BoidData> sortedBoidData;
 
         [ReadOnly] public NativeArray<int3> pivots;
-        [ReadOnly] public NativeArray<int> hashTable;
         [ReadOnly] public NativeArray<int> cellIndices;
         [ReadOnly] public float conversionFactor;
         [ReadOnly] public int3 cellCountAxis;
@@ -27,9 +27,9 @@ namespace Boids
 
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        public void Execute([EntityIndexInQuery] int boidIndex, ref CRuleVector ruleVector)
+        public void Execute([EntityIndexInQuery] int boidIndex, ref CRuleVector ruleVector, in LocalTransform transform)
         {
-            float3 position = boidData[boidIndex].position;
+            float3 position = transform.Position;
             int cellIndex = cellIndices[boidIndex];
             float3 convertedPosition = (position - boundsMin) * conversionFactor;
             int3 cell = new int3((int)convertedPosition.x, (int)convertedPosition.y, (int)convertedPosition.z);
@@ -50,14 +50,14 @@ namespace Boids
             // iterate over all boids in the cell of the currently processed boid
             for (int i = pivot.y; i < pivot.z; i++)
             {
-                int boidIndexToCheck = hashTable[i];
+                BoidData boidData = sortedBoidData[i];
 
-                if (boidIndexToCheck == boidIndex)
+                if (math.distancesq(boidData.position, transform.Position) < 0.000001)
                 {
                     continue;
                 }
                 
-                ProcessBoid(boidData[boidIndexToCheck]);
+                ProcessBoid(boidData);
             }
 
             // get the cells surrounding the cell of the currently processed boid and iterate over all boids inside
@@ -80,8 +80,7 @@ namespace Boids
 
                         for (int i = pivotToCheck.y; i < pivotToCheck.z; i++)
                         {
-                            int boidIndexToCheck = hashTable[i];
-                            ProcessBoid(boidData[boidIndexToCheck]);
+                            ProcessBoid(sortedBoidData[i]);
                         }
                     }
                 }
@@ -98,23 +97,10 @@ namespace Boids
                 separationVector = -1 * towardsMassCenterNormed * separateUrgency * behaviourData.separationStrength;
             }
 
-            globalCohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.globalCohesionStrength * behaviourData.maxSpeedCohesion;
-            objectiveVector = math.normalize(swarmObjective - position) * speedTowardsObjective;
+            globalCohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.globalCohesionStrength;
+            objectiveVector = math.normalize(swarmObjective - position) * behaviourData.speedTowardsObjective * behaviourData.objectiveStrength;
 
             ruleVector.value = alignmentVector + separationVector + cohesionVector + globalCohesionVector + objectiveVector;
-
-            //if (boidIndex == 500)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 500 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
-            //}
-            //if (boidIndex == 999)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 999 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
-            //}
-            //if (boidIndex == 1)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 1 - : cohesionVector: " + math.length(cohesionVector) + ". alignmentVector: " + math.length(alignmentVector) + ". separationVector: " + math.length(separationVector) + ". objectiveVector: " + math.length(objectiveVector));
-            //}
 
             void ProcessBoid(BoidData boidToCheck)
             {

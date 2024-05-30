@@ -54,12 +54,12 @@ public class SettingsUIRuntime : MonoBehaviour
         if (configQuery.TryGetSingletonRW<CBoidsConfig>(out var config))
         {
             sliderVisionRadius.minValue = 0;
-            sliderVisionRadius.maxValue = 0.1f;
+            sliderVisionRadius.maxValue = 1f;
             sliderVisionRadius.value = config.ValueRW.behaviourData.Value.visionRange;
             textVisionRadius.text = sliderVisionRadius.value.ToString();
 
             sliderGlobalCohesionStrength.minValue = 0;
-            sliderGlobalCohesionStrength.maxValue = 0.1f;
+            sliderGlobalCohesionStrength.maxValue = 1f;
             sliderGlobalCohesionStrength.value = config.ValueRW.behaviourData.Value.globalCohesionStrength;
             textGlobalCohesionStrength.text = sliderGlobalCohesionStrength.value.ToString();
 

@@ -32,5 +32,5 @@ public struct MovementData
 
     public float accelerationFleeing;
 
-    public float angularAcceleration;
+    public float towardsObjectiveTime;
 }
