@@ -29,63 +29,38 @@ public static class CollisionExtension
     }
 
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    public static void GetAABBHashMapOverlapArea(in float conversionFactor, in MinMaxAABB hashMapAABB, in MinMaxAABB obstacleAABB, out MinMaxAABB resultAABB)
+    public static void GetAABBHashMapOverlapData(in float conversionFactor, in MinMaxAABB hashMapAABB, 
+                                                 in MinMaxAABB obstacleAABB, out int3 cellMin, out int3 cellMax)
     {
-        resultAABB = new MinMaxAABB();
+        cellMin = new int3(0, 0, 0);
+        cellMax = new int3((int)(hashMapAABB.Max.x * conversionFactor),
+                                (int)(hashMapAABB.Max.y * conversionFactor),
+                                (int)(hashMapAABB.Max.z * conversionFactor));
 
-        if(obstacleAABB.Min.x < hashMapAABB.Min.x)
+        if (obstacleAABB.Min.x > hashMapAABB.Min.x)
         {
-            resultAABB.Min.x = hashMapAABB.Min.x;
+            cellMin.x = (int)(obstacleAABB.Min.x * conversionFactor);
         }
-        else
+        if (obstacleAABB.Min.y > hashMapAABB.Min.y)
         {
-            resultAABB.Min.x = ((int)(obstacleAABB.Min.x * conversionFactor)) / conversionFactor;
+            cellMin.y = (int)(obstacleAABB.Min.y * conversionFactor);
         }
-
-        if (obstacleAABB.Min.y < hashMapAABB.Min.y)
+        if (obstacleAABB.Min.z > hashMapAABB.Min.z)
         {
-            resultAABB.Min.y = hashMapAABB.Min.y;
-        }
-        else
-        {
-            resultAABB.Min.y = ((int)(obstacleAABB.Min.y * conversionFactor)) / conversionFactor;
+            cellMin.z = (int)(obstacleAABB.Min.z * conversionFactor);
         }
 
-        if (obstacleAABB.Min.z < hashMapAABB.Min.z)
+        if (obstacleAABB.Max.x < hashMapAABB.Max.x)
         {
-            resultAABB.Min.z = hashMapAABB.Min.z;
+            cellMax.x = (int)(obstacleAABB.Max.x * conversionFactor);
         }
-        else
-        {
-            resultAABB.Min.z = ((int)(obstacleAABB.Min.z * conversionFactor)) / conversionFactor;
-        }
-
-
-        if (obstacleAABB.Max.x > hashMapAABB.Max.x)
-        {
-            resultAABB.Max.x = hashMapAABB.Max.x;
-        }
-        else
-        {
-            resultAABB.Max.x = ((int)(obstacleAABB.Max.x * conversionFactor) + 1) / conversionFactor;
-        }
-
         if (obstacleAABB.Max.y < hashMapAABB.Max.y)
         {
-            resultAABB.Max.y = hashMapAABB.Max.y;
+            cellMax.y = (int)(obstacleAABB.Max.y * conversionFactor);
         }
-        else
-        {
-            resultAABB.Max.y = ((int)(obstacleAABB.Max.y * conversionFactor) + 1) / conversionFactor;
-        }
-
         if (obstacleAABB.Max.z < hashMapAABB.Max.z)
         {
-            resultAABB.Max.z = hashMapAABB.Max.z;
-        }
-        else
-        {
-            resultAABB.Max.z = ((int)(obstacleAABB.Max.z * conversionFactor) + 1) / conversionFactor;
+            cellMax.z = (int)(obstacleAABB.Max.z * conversionFactor);
         }
     }
 }

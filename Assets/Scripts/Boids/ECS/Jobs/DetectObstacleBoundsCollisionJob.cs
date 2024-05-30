@@ -13,20 +13,22 @@ namespace Boids
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     partial struct FindObstacleHashMapOverlapsJob : IJobEntity
     {
-        [ReadOnly] public MinMaxAABB hashMapBoundsExtended;
-        public NativeArray<bool> HasOverlapObstacles;
-        public NativeArray<MinMaxAABB> obstacleAABBs;
+        [ReadOnly] public MinMaxAABB localHashMapAABBs;
+        [ReadOnly] public float3 hashMapMin;
+        [ReadOnly] public float obstacleInteractionRadius;
+        public NativeArray<bool> hasOverlapObstacles;
+        public NativeArray<MinMaxAABB> localObstacleAABBsExtended;
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int index, in RenderBounds bounds)
         {
-            MinMaxAABB obstacleBounds = new MinMaxAABB
+            MinMaxAABB localObstacleAABBExtended = new MinMaxAABB
             {
-                Min = bounds.Value.Min,
-                Max = bounds.Value.Max,
+                Min = bounds.Value.Min - hashMapMin - obstacleInteractionRadius,
+                Max = bounds.Value.Max - hashMapMin + obstacleInteractionRadius,
             };
-            HasOverlapObstacles[index] = CollisionExtension.CheckAABBOverlap(in hashMapBoundsExtended, in obstacleBounds);
-            obstacleAABBs[index] = obstacleBounds;
+            hasOverlapObstacles[index] = CollisionExtension.CheckAABBOverlap(in localHashMapAABBs, in localObstacleAABBExtended);
+            localObstacleAABBsExtended[index] = localObstacleAABBExtended;
         }
     }
 }

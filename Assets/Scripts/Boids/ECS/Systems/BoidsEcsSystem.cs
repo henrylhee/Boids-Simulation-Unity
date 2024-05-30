@@ -40,7 +40,7 @@ namespace Boids
         float maxDistanceBoidToCenter;
 
         NativeArray<BoidData> boidData;
-        NativeArray<ObstacleData> boidObstacleInfo;
+        NativeArray<ObstacleData> boidObstacleData;
 
         NativeArray<Unity.Mathematics.Random> randoms;
 
@@ -104,6 +104,7 @@ namespace Boids
             cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
             boidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
+            boidObstacleData = new NativeArray<ObstacleData>(spawnData.boidCount, Allocator.Persistent);
 
             boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             boidTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
@@ -313,22 +314,20 @@ namespace Boids
         {
             int obstacleCount = boidObstacleQuery.CalculateEntityCount();
             NativeArray<bool> hasOverlapObstacles = new NativeArray<bool>(obstacleCount, Allocator.TempJob);
-            NativeArray<MinMaxAABB> obstacleAABBs = new NativeArray<MinMaxAABB>(obstacleCount, Allocator.TempJob);
-            MinMaxAABB hashMapBounds = new MinMaxAABB
+            NativeArray<MinMaxAABB> localObstacleAABBsExtended = new NativeArray<MinMaxAABB>(obstacleCount, Allocator.TempJob);
+            MinMaxAABB localHashMapAABBs = new MinMaxAABB
             {
-                Min = hashGridBuilder.boundsMin,
-                Max = hashGridBuilder.boundsMax
+                Min = new float3(0,0,0),
+                Max = hashGridBuilder.boundsMax - hashGridBuilder.boundsMin
             };
 
             new FindObstacleHashMapOverlapsJob
             {
-                hashMapBoundsExtended = new MinMaxAABB
-                {
-                    Min = hashMapBounds.Min - behaviourData.obstacleInteractionRadius,
-                    Max = hashMapBounds.Max + behaviourData.obstacleInteractionRadius
-                },
-                HasOverlapObstacles = hasOverlapObstacles,
-                obstacleAABBs = obstacleAABBs
+                localHashMapAABBs = localHashMapAABBs,
+                localObstacleAABBsExtended = localObstacleAABBsExtended,
+                hasOverlapObstacles = hasOverlapObstacles,
+                hashMapMin = hashGridBuilder.boundsMin,
+                obstacleInteractionRadius = behaviourData.obstacleInteractionRadius
             }
             .ScheduleParallel(boidObstacleQuery, new JobHandle())
             .Complete();
@@ -338,25 +337,21 @@ namespace Boids
             {
                 if (hasOverlapObstacles[i])
                 {
-                    MinMaxAABB overlapArea;
-                    MinMaxAABB obstacleAABB = obstacleAABBs[i];
-                    CollisionExtension.GetAABBHashMapOverlapArea(in conversionFactor, in hashMapBounds, in obstacleAABB, out overlapArea);
+                    int3 areaCellMin;
+                    int3 areaCellMax;
+                    MinMaxAABB localObstacleAABBExtended = localObstacleAABBsExtended[i];
+                    CollisionExtension.GetAABBHashMapOverlapData(in conversionFactor, in localHashMapAABBs, 
+                                                                 in localObstacleAABBExtended, out areaCellMin, out areaCellMax);
 
-
-                    MinMaxAABB localOverlapArea = new MinMaxAABB
-                    {
-                        Min = overlapArea.Min - hashMapBounds.Min,
-                        Max = overlapArea.Max - hashMapBounds.Min
-                    };
-                    int3 areaCellCount = new int3();
+                    int3 areaCellCount = areaCellMax - areaCellMin + 1;
                     new GetBoidObstacleCollisionDataJob
                     {
-                        cellCountX = ,
-                        cellCountXY,
-                        areaCellCountX,
-                        areaCellCountXY,
-                        areaStartCell,
-                        areaCellOffset,
+                        cellCountX = hashGridBuilder.cellCountAxis.x,
+                        cellCountXY = hashGridBuilder.cellCountXY,
+                        areaCellCountX = areaCellCount.x,
+                        areaCellCountXY = areaCellCount.x * areaCellCount.y,
+                        areaStartCell = areaCellMin,
+                        areaCellOffset = hashGridBuilder.cellCountAxis - areaCellCount,
 
                         hashPivots = pivots,
                         hashTable = hashTable,
@@ -364,7 +359,7 @@ namespace Boids
 
                         col,
 
-                        obstacleData,
+                        obstacleData = boidObstacleData,
                     }.Schedule()
                     .Complete();
                 }
@@ -379,6 +374,7 @@ namespace Boids
             cellIndices.Dispose();
             hashTable.Dispose();
             boidData.Dispose();
+            boidObstacleData.Dispose();
             randoms.Dispose();
             boidTargetIndices.Dispose();
             boidTargetPositions.Dispose();
