@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
@@ -9,6 +10,7 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Rendering;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Boids
 {
@@ -62,7 +64,8 @@ namespace Boids
             boidsQuery = SystemAPI.QueryBuilder().WithAspect<BoidAspect>().Build();
             boidsEnemyQuery = SystemAPI.QueryBuilder().WithAspect<BoidEnemyAspect>().Build();
             swarmTargetsQuery = SystemAPI.QueryBuilder().WithAll<CSwarmTarget>().WithAll<LocalToWorld>().Build();
-            boidObstacleQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().WithAll<RenderBounds>().WithAll<PhysicsCollider>().Build();
+            boidObstacleQuery = SystemAPI.QueryBuilder().WithAll<CBoidObstacleTag>().WithAll<RenderBounds>().WithAll<PhysicsCollider>()
+                                                        .WithAll<LocalToWorld>().WithAll<LocalTransform>().Build();
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -72,6 +75,36 @@ namespace Boids
             InitializeBoids(ref state);
             SpawnBoids(ref state);
             InitializeEnemies(ref state);
+        }
+
+        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+        private void Initialize(ref SystemState state)
+        {
+            boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
+            behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
+            movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
+            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
+            enemyConfig = SystemAPI.GetSingleton<CBoidEnemyConfig>().Config;
+
+            cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
+            hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
+            boidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
+            sortedBoidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
+            boidObstacleData = new NativeArray<ObstacleData>(spawnData.boidCount, Allocator.Persistent);
+
+            boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            boidTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+            randoms = new NativeArray<Unity.Mathematics.Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+            spawnDataBuilder = new SpawnDataBuilder();
+            hashGridBuilder = new SpatialHashGridBuilder();
+
+            enemyChaseTimer = new Timer();
+            enemyChaseTimer.Initialize(enemyConfig.chaseTime);
+
+            boidObjectiveTimer = new Timer();
+            boidObjectiveTimer.Initialize(movementData.towardsObjectiveTime);
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -104,36 +137,6 @@ namespace Boids
             UpdateBoids(in pivots, ref state);
             UpdateEnemies(ref state);
             pivots.Dispose();
-        }
-
-        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        private void Initialize(ref SystemState state)
-        {
-            boidPrefab = SystemAPI.GetSingleton<CBoidsConfig>().boidPrefabEntity;
-            behaviourData = SystemAPI.GetSingleton<CBoidsConfig>().behaviourData.Value;
-            movementData = SystemAPI.GetSingleton<CBoidsConfig>().movementData.Value;
-            spawnData = SystemAPI.GetSingleton<CBoidsConfig>().spawnData.Value;
-            enemyConfig = SystemAPI.GetSingleton<CBoidEnemyConfig>().Config;
-
-            cellIndices = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
-            hashTable = new NativeArray<int>(spawnData.boidCount, Allocator.Persistent);
-            boidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
-            sortedBoidData = new NativeArray<BoidData>(spawnData.boidCount, Allocator.Persistent);
-            boidObstacleData = new NativeArray<ObstacleData>(spawnData.boidCount, Allocator.Persistent);
-
-            boidTargetIndices = new NativeArray<int>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            boidTargetPositions = new NativeArray<float3>(boidsEnemyQuery.CalculateEntityCount(), Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-
-            randoms = new NativeArray<Unity.Mathematics.Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-
-            spawnDataBuilder = new SpawnDataBuilder();
-            hashGridBuilder = new SpatialHashGridBuilder();
-
-            enemyChaseTimer = new Timer();
-            enemyChaseTimer.Initialize(enemyConfig.chaseTime);
-
-            boidObjectiveTimer = new Timer();
-            boidObjectiveTimer.Initialize(movementData.towardsObjectiveTime);
         }
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
@@ -181,7 +184,7 @@ namespace Boids
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         private void InitializeBoids(ref SystemState state)
         {
-            boidVisionRadius = behaviourData.enemyVisionRadius;
+            boidVisionRadius = behaviourData.visionRadiusEnemies;
 
             swarmTargetIndex = 0;
             swarmTargetPositions = new NativeArray<float3>(swarmTargetsQuery.CalculateEntityCount(), Allocator.Persistent);
@@ -208,6 +211,7 @@ namespace Boids
         private void UpdateBoids(in NativeArray<int3> pivots, ref SystemState state)
         {
             float deltaTime = SystemAPI.Time.DeltaTime;
+
             boidObjectiveTimer.Update(deltaTime);
             if (boidObjectiveTimer.isFinished)
             {
@@ -266,6 +270,7 @@ namespace Boids
 
                 randoms = this.randoms,
                 enemyTransforms = this.enemyTransforms,
+                obstacleDataArr = boidObstacleData
             }
             .ScheduleParallel(boidsQuery, state.Dependency)
             .Complete();
@@ -341,9 +346,17 @@ namespace Boids
             .ScheduleParallel(boidObstacleQuery, new JobHandle())
             .Complete();
 
-            float conversionFactor = 1 / behaviourData.visionRange;
+            new InitializeBoidObstacleDataJob
+            {
+                boidObstacleData = boidObstacleData,
+            }
+            .Schedule(spawnData.boidCount, 32)
+            .Complete();
+
+            float conversionFactor = 1 / behaviourData.visionRadius;
             for (int i = 0; i < obstacleCount; i++)
             {
+
                 if (hasOverlapObstacles[i])
                 {
                     int3 areaCellMin;
@@ -351,8 +364,8 @@ namespace Boids
                     MinMaxAABB localObstacleAABBExtended = localObstacleAABBsExtended[i];
                     CollisionExtension.GetAABBHashMapOverlapData(in conversionFactor, in localHashMapAABBs, 
                                                                  in localObstacleAABBExtended, out areaCellMin, out areaCellMax);
-
                     int3 areaCellCount = areaCellMax - areaCellMin + 1;
+
                     new GetBoidObstacleCollisionDataJob
                     {
                         cellCountX = hashGridBuilder.cellCountAxis.x,
@@ -361,18 +374,22 @@ namespace Boids
                         areaCellCountXY = areaCellCount.x * areaCellCount.y,
                         areaStartCell = areaCellMin,
                         areaCellOffset = hashGridBuilder.cellCountAxis - areaCellCount,
+                        boidObstacleInteractionRadius = behaviourData.obstacleInteractionRadius,
 
                         hashPivots = pivots,
                         hashTable = hashTable,
-                        boidData = boidData,
+                        boidDataArr = boidData,
 
-                        col = obstacleColliders[i],
+                        collider = obstacleColliders[i],
 
                         obstacleData = boidObstacleData,
                     }.Schedule(areaCellCount.x * areaCellCount.y * areaCellCount.z, 32)
                     .Complete();
                 }
             }
+            hasOverlapObstacles.Dispose();
+            localObstacleAABBsExtended.Dispose();
+            obstacleColliders.Dispose();
         }
 
         public void OnStopRunning(ref SystemState state) { }
@@ -390,52 +407,6 @@ namespace Boids
             boidTargetPositions.Dispose();
             enemyTransforms.Dispose();
             swarmTargetPositions.Dispose();
-        }
-    }
-
-    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    partial struct InitializeBoidsJob : IJobEntity
-    {
-        [ReadOnly] public float startSpeed;
-        [ReadOnly] public float startAngularSpeed;
-        [ReadOnly] public NativeArray<float3> positions;
-        [ReadOnly] public NativeArray<quaternion> rotations;
-
-
-        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        public void Execute([EntityIndexInQuery] int boidIndex, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
-        {
-            speed.value = startSpeed;
-            angularSpeed.value = startAngularSpeed;
-            transform = LocalTransform.FromPositionRotationScale(positions[boidIndex], rotations[boidIndex], transform.Scale);
-        }
-    }
-
-    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    partial struct InitializeEnemiesJob : IJobEntity
-    {
-        [ReadOnly] public float speed;
-        [ReadOnly] public float angularSpeed;
-        [NativeDisableContainerSafetyRestriction] public NativeArray<LocalTransform> enemyTransforms;
-
-        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        public void Execute([EntityIndexInQuery] int enemyIndex, ref CSpeed speed, ref CAngularSpeed angularSpeed, in LocalTransform transform)
-        {
-            speed.value = this.speed;
-            angularSpeed.value = this.angularSpeed;
-            enemyTransforms[enemyIndex] = transform;
-        }
-    }
-
-    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-    partial struct InitializeSwarmTargetPositionsJob : IJobEntity
-    {
-        public NativeArray<float3> swarmTargetPositions;
-
-        [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
-        public void Execute(in CSwarmTarget swarmTarget, in LocalToWorld localToWorld)
-        {
-            swarmTargetPositions[swarmTarget.index] = localToWorld.Position;
         }
     }
 }

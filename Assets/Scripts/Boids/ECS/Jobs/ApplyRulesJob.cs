@@ -45,7 +45,7 @@ namespace Boids
             float3 globalCohesionVector = float3.zero;
             float3 objectiveVector = float3.zero;
 
-            float visionRangeSq = behaviourData.visionRange * behaviourData.visionRange;
+            float visionRangeSq = behaviourData.visionRadius * behaviourData.visionRadius;
 
             // iterate over all boids in the cell of the currently processed boid
             for (int i = pivot.y; i < pivot.z; i++)
@@ -97,8 +97,8 @@ namespace Boids
                 separationVector = -1 * towardsMassCenterNormed * separateUrgency * behaviourData.separationStrength;
             }
 
-            globalCohesionVector = ((swarmCenter - position)/maxDistanceCenter) * behaviourData.globalCohesionStrength;
-            objectiveVector = math.normalize(swarmObjective - position) * behaviourData.speedTowardsObjective * behaviourData.objectiveStrength;
+            globalCohesionVector = (swarmCenter - position) * behaviourData.globalCohesionStrength;
+            objectiveVector = math.normalize(swarmObjective - position) * speedTowardsObjective * behaviourData.objectiveStrength;
 
             ruleVector.value = alignmentVector + separationVector + cohesionVector + globalCohesionVector + objectiveVector;
 

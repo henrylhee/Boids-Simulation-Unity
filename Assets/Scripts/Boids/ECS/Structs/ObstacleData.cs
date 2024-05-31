@@ -5,7 +5,6 @@ using UnityEngine;
 
 public struct ObstacleData
 {
-    public bool isInRange;
-    public float3 nearestPoint;
-    public float3 avoidDirection;
+    public float distance;
+    public float3 avoidanceDirection;
 }

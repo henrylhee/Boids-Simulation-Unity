@@ -26,6 +26,7 @@ namespace Boids
         [ReadOnly] public float boidVisionRadius;
         [ReadOnly] public float boidEnemyMaxDistance;
         [ReadOnly] public NativeArray<LocalTransform> enemyTransforms;
+        [ReadOnly] public NativeArray<ObstacleData> obstacleDataArr;
 
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute([EntityIndexInQuery] int boidIndex, in CRuleVector ruleVector, ref LocalTransform transform, ref CSpeed speed, ref CAngularSpeed angularSpeed)
@@ -84,6 +85,12 @@ namespace Boids
                 speed.value = math.clamp(speed.value, minSpeed, maxSpeed);
             }
 
+            ObstacleData obstacleData = obstacleDataArr[boidIndex];
+            if (obstacleData.distance != -1)
+            {
+                normedRuleVector = obstacleData.avoidanceDirection;
+            }
+
             var random = randoms[threadId];
             float3 randomVector = random.NextFloat3(-maxRadiansRandom, maxRadiansRandom);
             float3 adjustedVelocity = math.mul(quaternion.EulerZXY(randomVector), normedRuleVector);
@@ -95,21 +102,6 @@ namespace Boids
             transform.Rotation = smoothRotation;
 
             transform = transform.Translate(math.mul(smoothRotation, new float3(0f, 0f, 1f)) * speed.value);
-
-            //if (boidIndex == 500)
-            //{
-            //    UnityEngine.Debug.Log("minSpeed * deltaTime * speedMulRules: " + minSpeed * deltaTime * speedMulRules);
-            //    UnityEngine.Debug.Log("maxSpeed * deltaTime * speedMulRules: " + maxSpeed * deltaTime * speedMulRules);
-            //    UnityEngine.Debug.Log("- Boid 500 -: " + "----> length: " + length + ". adjusted length: " + math.length(velocity));
-            //}
-            //if (boidIndex == 999)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 999 -: " + "----> length: " + length + ". adjusted length: " + math.length(velocity));
-            //}
-            //if (boidIndex == 1)
-            //{
-            //    UnityEngine.Debug.Log("- Boid 1 -: " + "----> length: " + length + ". adjusted length: " + math.length(velocity));
-            //}
         }
     }
 }

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
     value:
-      boidCount: 50000
+      boidCount: 100000
       center:
         x: 0
         y: 0

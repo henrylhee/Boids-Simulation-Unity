@@ -22,7 +22,7 @@ public struct SpatialHashGridBuilder
     [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
     public void SetUp(in BehaviourData settings, in NativeArray<BoidData> boidData)
     {
-        conversionFactor = 1f / settings.visionRange;
+        conversionFactor = 1f / settings.visionRadius;
 
         UpdateBounds(in boidData);
         SetCellCount();

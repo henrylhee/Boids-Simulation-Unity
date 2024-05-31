@@ -55,7 +55,7 @@ public class SettingsUIRuntime : MonoBehaviour
         {
             sliderVisionRadius.minValue = 0;
             sliderVisionRadius.maxValue = 1f;
-            sliderVisionRadius.value = config.ValueRW.behaviourData.Value.visionRange;
+            sliderVisionRadius.value = config.ValueRW.behaviourData.Value.visionRadius;
             textVisionRadius.text = sliderVisionRadius.value.ToString();
 
             sliderGlobalCohesionStrength.minValue = 0;
@@ -89,7 +89,7 @@ public class SettingsUIRuntime : MonoBehaviour
     {
         if (configQuery.TryGetSingletonRW<CBoidsConfig>(out var config))
         {
-            config.ValueRW.behaviourData.Value.visionRange = sliderVisionRadius.value;
+            config.ValueRW.behaviourData.Value.visionRadius = sliderVisionRadius.value;
             textVisionRadius.text = sliderVisionRadius.value.ToString();
         }
     }

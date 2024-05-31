@@ -1,3 +1,4 @@
+using System.Linq;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -24,7 +25,7 @@ namespace Boids
         [ReadOnly] public NativeArray<int> hashTable;
         [ReadOnly] public NativeArray<BoidData> boidDataArr;
 
-        [ReadOnly] public PhysicsCollider col;
+        [ReadOnly] public PhysicsCollider collider;
 
         public NativeArray<ObstacleData> obstacleData;
 
@@ -32,8 +33,6 @@ namespace Boids
         [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
         public void Execute(int areaCellIndex)
         {
-            Collider collider = col.Value.Value;
-
             int x = areaCellIndex % areaCellCountX;
             int z = /*(int)*/areaCellIndex / areaCellCountXY;
             int y = ((areaCellIndex % areaCellCountXY) - x) / areaCellCountX;
@@ -53,11 +52,20 @@ namespace Boids
                 input.Position = boidPosition;
                 input.MaxDistance = boidObstacleInteractionRadius;
                 DistanceHit hit = new DistanceHit();
-                if(collider.CalculateDistance(input, out hit))
+
+                if (collider.Value.Value.CalculateDistance(input, out hit))
                 {
-                    float3 boidDirection = math.mul(boidData.rotation, new float3(0,0,1));
-                    float3 rotationAxis = math.normalizesafe(math.cross(boidDirection, hit.SurfaceNormal));
-                    float3 avoidanceDirection = math.mul(quaternion.AxisAngle(rotationAxis, 0.5f*math.PI), hit.SurfaceNormal);
+                    if (hit.Distance < obstacleData[boidIndex].distance || obstacleData[boidIndex].distance == -1)
+                    {
+                        float3 boidDirection = math.mul(boidData.rotation, new float3(0, 0, 1));
+                        float3 rotationAxis = math.normalizesafe(math.cross(boidDirection, hit.SurfaceNormal));
+                        float3 avoidanceDirection = math.mul(quaternion.AxisAngle(rotationAxis, 0.5f * math.PI), hit.SurfaceNormal);
+                        obstacleData[boidIndex] = new ObstacleData
+                        {
+                            avoidanceDirection = avoidanceDirection,
+                            distance = hit.Distance
+                        };
+                    }
                 }
             }
         }

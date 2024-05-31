@@ -15,7 +15,7 @@ public struct BehaviourData
 
     [Header("Behaviour Settings"),
      Tooltip("The distance used to calculate the center of mass.")]
-    public float visionRange;
+    public float visionRadius;
 
     //[Tooltip("The distance used to apply the rule of separation.")]
     //public float separationDistance;
@@ -41,7 +41,7 @@ public struct BehaviourData
     public float objectiveStrength;
 
     [Tooltip("A boid reacts to enemies within this range.")]
-    public float enemyVisionRadius;
+    public float visionRadiusEnemies;
 
     [Tooltip("A boid reacts to obstacles within this range.")]
     public float obstacleInteractionRadius;
@@ -49,7 +49,4 @@ public struct BehaviourData
     [Tooltip("The randomness of the targetVector direction in degrees."),
      Range(0, 10)]
     public float DirectionRandomness;
-
-    public float speedTowardsObjective;
-
 }

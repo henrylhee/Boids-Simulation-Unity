@@ -14,13 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <Value>k__BackingField:
     Value:
-      visionRange: 0.05
+      visionRadius: 0.04
       cohesionStrength: 0.111
       globalCohesionStrength: 0.132
       separationStrength: 0.16
       alignmentStrength: 0.947
       objectiveStrength: 0.032
-      enemyVisionRadius: 0.4
-      obstacleInteractionRadius: 0
+      visionRadiusEnemies: 0.4
+      obstacleInteractionRadius: 0.2
       DirectionRandomness: 0.32
-      speedTowardsObjective: 0.5
