@@ -18,9 +18,11 @@ namespace Boids
         [ReadOnly] public int3 areaStartCell;
         [ReadOnly] public int3 areaCellOffset;
 
+        [ReadOnly] public float boidObstacleInteractionRadius;
+
         [ReadOnly] public NativeArray<int3> hashPivots;
         [ReadOnly] public NativeArray<int> hashTable;
-        [ReadOnly] public NativeArray<BoidData> boidData;
+        [ReadOnly] public NativeArray<BoidData> boidDataArr;
 
         [ReadOnly] public PhysicsCollider col;
 
@@ -45,10 +47,18 @@ namespace Boids
             {
                 int boidIndex = hashTable[i];
 
-                //float3 boidPosition = boidData[boidIndex].position;
-                //float3 v = collider.CalculateDistance();
-                //CapsuleCollider col = new CapsuleCollider();
-                //col.
+                BoidData boidData = boidDataArr[boidIndex];
+                float3 boidPosition = boidData.position;
+                PointDistanceInput input = new PointDistanceInput();
+                input.Position = boidPosition;
+                input.MaxDistance = boidObstacleInteractionRadius;
+                DistanceHit hit = new DistanceHit();
+                if(collider.CalculateDistance(input, out hit))
+                {
+                    float3 boidDirection = math.mul(boidData.rotation, new float3(0,0,1));
+                    float3 rotationAxis = math.normalizesafe(math.cross(boidDirection, hit.SurfaceNormal));
+                    float3 avoidanceDirection = math.mul(quaternion.AxisAngle(rotationAxis, 0.5f*math.PI), hit.SurfaceNormal);
+                }
             }
         }
     }
